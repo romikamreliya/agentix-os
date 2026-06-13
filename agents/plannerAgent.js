@@ -1,35 +1,33 @@
-const { askAI } = require("../core/aiClient");
+const { getAgentProfile } = require("../core/agentRegistry");
 
 async function plannerAgent(idea, research) {
-    console.log("\n🧠 AI Planner Agent Running...");
 
-    const systemPrompt = `
-You are a senior system architect.
-Convert ideas into structured development plans with phases and tasks.
-Return ONLY JSON.
-`;
+  const agents = [
+    getAgentProfile("researchAgent"),
+    getAgentProfile("plannerAgent"),
+    getAgentProfile("executionAgent")
+  ];
 
-    const userPrompt = `
-Idea: ${idea}
-
-Research:
-${JSON.stringify(research, null, 2)}
-
-Return format:
-{
-  "phases": [
-    {
-      "name": "",
-      "tasks": []
-    }
-  ],
-  "required_agents": []
-}
-`;
-
-    const result = await askAI(systemPrompt, userPrompt);
-
-    return JSON.parse(result);
+  return {
+    goal: idea,
+    agents_required: agents,
+    phases: [
+      {
+        name: "Setup Phase",
+        tasks: [
+          "initialize system",
+          "define architecture"
+        ]
+      },
+      {
+        name: "Execution Phase",
+        tasks: [
+          "run tasks",
+          "validate output"
+        ]
+      }
+    ]
+  };
 }
 
 module.exports = { plannerAgent };

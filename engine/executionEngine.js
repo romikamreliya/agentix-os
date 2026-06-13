@@ -1,40 +1,40 @@
-const { researchAgent } = require("../agents/researchAgent");
-const { plannerAgent } = require("../agents/plannerAgent");
+const { useTool } = require("../core/toolbox");
 
 async function executionEngine(plan) {
-    console.log("\n🚀 Execution Engine Started");
+    console.log("\n🚀 Agentix Execution Engine (Smart Mode)");
 
     const results = [];
 
     for (let phase of plan.phases) {
-        console.log(`\n📦 Running: ${phase.name}`);
+
+        console.log(`\n📦 Phase: ${phase.name}`);
 
         for (let task of phase.tasks) {
 
-            console.log(`🤖 Executing task: ${task}`);
+            console.log(`🤖 Task: ${task}`);
 
-            // SIMPLE AGENT ROUTING (MVP)
-            let result;
+            let output;
 
-            if (task.toLowerCase().includes("research")) {
-                result = await researchAgent(task);
-            } else {
-                result = {
-                    task,
-                    status: "done",
-                    output: `Executed: ${task}`
-                };
+            // TOOL-BASED EXECUTION
+            if (task.includes("initialize")) {
+                output = useTool("design", task);
+            }
+            else if (task.includes("run")) {
+                output = useTool("simulate_execution", task);
+            }
+            else {
+                output = useTool("write", task);
             }
 
             results.push({
                 task,
-                result
+                output
             });
         }
     }
 
     return {
-        status: "EXECUTION_COMPLETE",
+        status: "DONE",
         results
     };
 }
