@@ -1,251 +1,601 @@
-# Agentix OS Vision
+# Core Principles
 
 ## Overview
 
-Agentix OS is a local-first AI operating system designed to transform ideas into successful outcomes through structured discovery, research, planning, execution, review, learning, and continuous improvement.
+This document defines the foundational principles of Agentix OS.
 
-Unlike traditional AI assistants that focus on answering questions, Agentix OS focuses on helping users achieve goals by managing the entire project lifecycle.
+Every architectural decision, workflow, agent, service, and feature must align with these principles.
 
-Agentix OS operates inside Visual Studio Code and acts as an intelligent project operating system that assists users while maintaining human control over important decisions.
-
----
-
-# Mission
-
-Enable individuals and teams to transform ideas into successful projects through AI-assisted workflows, structured governance, reusable knowledge, and continuous learning.
+If a future implementation conflicts with these principles, the principles take precedence.
 
 ---
 
-# Vision Statement
+# Principle 1 — AI Recommends, Humans Decide
 
-Create an AI-powered operating system that helps users:
+AI systems assist.
 
-* Discover requirements
-* Research solutions
-* Build execution plans
-* Manage projects
-* Coordinate AI agents
-* Capture knowledge
-* Reuse successful patterns
-* Continuously improve future outcomes
+Humans remain responsible for decisions.
 
-Agentix OS aims to become a central workspace where ideas, projects, knowledge, agents, skills, and blueprints work together within a unified system.
+Agentix OS is designed to support human judgment, not replace it.
 
 ---
 
-# Problem Statement
+## Allowed
 
-Modern project execution suffers from several challenges:
+```text
+AI Analysis
 
-* Requirements are incomplete or unclear.
-* Knowledge is lost between projects.
-* Decisions are difficult to trace.
-* Lessons learned are rarely reused.
-* AI tools answer questions but do not manage outcomes.
-* Project planning is often inconsistent.
-* Teams repeatedly solve the same problems.
+AI Research
 
-Agentix OS is designed to solve these challenges through structured workflows and persistent organizational knowledge.
+AI Recommendations
 
----
+AI Reviews
 
-# Core Philosophy
-
-## AI Recommends, Humans Decide
-
-Agentix OS assists users by providing recommendations, analysis, and insights.
-
-Humans remain responsible for important decisions.
-
-The system is designed to support decision-making, not replace it.
+AI Planning Assistance
+```
 
 ---
 
-## Nothing Important Happens Automatically
+## Not Allowed
 
-Critical actions require explicit approval.
+```text
+Automatic Approvals
 
-Examples:
+Automatic Governance Changes
 
-* Agent creation
-* Blueprint updates
-* Skill improvements
-* Phase approvals
-* Phase reopening
-* Major project changes
+Automatic Blueprint Promotion
 
----
-
-## Knowledge Drives Improvement
-
-Every completed project contributes to organizational knowledge.
-
-Knowledge is transformed into:
-
-* Better blueprints
-* Better skills
-* Better recommendations
-* Better future projects
+Automatic Skill Promotion
+```
 
 ---
 
-## Local First
+## Rule
 
-Agentix OS runs locally inside Visual Studio Code.
-
-User projects, files, and knowledge remain under user control.
-
-No cloud dependency is required for the MVP version.
+Important decisions require human approval.
 
 ---
 
-# Primary Goals
+# Principle 2 — Discovery Before Execution
 
-## Goal 1: Structured Project Execution
+Every successful project begins with understanding.
 
-Provide a repeatable workflow for transforming ideas into successful projects.
+Before planning or execution:
 
----
-
-## Goal 2: AI-Assisted Governance
-
-Support users through:
-
-* Reviews
-* Approvals
-* Recommendations
-* Risk analysis
-* Impact analysis
+```text
+Understand Requirements
+      ↓
+Identify Constraints
+      ↓
+Clarify Assumptions
+      ↓
+Then Execute
+```
 
 ---
 
-## Goal 3: Reusable Knowledge
+## Rule
 
-Capture knowledge and lessons learned so future projects benefit from previous experience.
-
----
-
-## Goal 4: Continuous Learning
-
-Allow Agentix OS to improve through:
-
-* Knowledge creation
-* Blueprint evolution
-* Skill improvements
-* Project retrospectives
+Discovery cannot be skipped.
 
 ---
 
-## Goal 5: Agent Collaboration
+# Principle 3 — Local First
 
-Enable specialized AI agents to collaborate under a unified parent agent.
+Agentix OS runs primarily on the user's machine.
 
-Examples:
-
-* Discovery Agent
-* Research Agent
-* Planning Agent
-* Review Agent
-* Knowledge Agent
-* Blueprint Agent
+User data belongs to the user.
 
 ---
 
-# Agentix OS Workflow
+## Benefits
 
-Idea
-↓
-Discovery
-↓
+```text
+Privacy
+
+Control
+
+Offline Capability
+
+Ownership
+```
+
+---
+
+## Rule
+
+Cloud services are optional.
+
+Core functionality must work locally.
+
+---
+
+# Principle 4 — Knowledge Over Memory
+
+Temporary memory is useful.
+
+Reusable knowledge is valuable.
+
+Agentix OS prioritizes converting experience into reusable knowledge.
+
+---
+
+## Example
+
+Bad:
+
+```text
+Remember everything forever.
+```
+
+Good:
+
+```text
+Store reusable lessons learned.
+```
+
+---
+
+## Rule
+
+Knowledge should be structured and reusable.
+
+---
+
+# Principle 5 — Continuous Learning
+
+Every completed workflow should improve future outcomes.
+
+---
+
+## Learning Sources
+
+```text
+Projects
+
+Reviews
+
 Research
-↓
-Planning
-↓
-Execution
-↓
-Review
-↓
-Approval
-↓
-Knowledge Extraction
-↓
-Blueprint Improvement
-↓
-Future Reuse
+
+Recommendations
+
+Lessons Learned
+```
 
 ---
 
-# Key Components
+## Outcome
 
-## Project Management
+```text
+Better Decisions
 
-Manage:
+Better Planning
 
-* Projects
-* Sub Projects
-* Phases
-* Tasks
-* Subtasks
+Better Execution
+```
 
 ---
 
-## Agent System
+# Principle 6 — Governance By Design
 
-Coordinate multiple AI agents responsible for specific domains and responsibilities.
+Governance is built into the system.
 
----
-
-## Knowledge System
-
-Store:
-
-* Lessons learned
-* Decisions
-* Best practices
-* Research outcomes
-* Project insights
+It is not an afterthought.
 
 ---
 
-## Blueprint System
+## Governance Components
 
-Create reusable project templates that evolve over time.
+```text
+Reviews
 
----
+Approvals
 
-## Review System
+Risks
 
-Perform AI-assisted and user-driven reviews across projects and tasks.
+Recommendations
 
----
-
-## Approval System
-
-Ensure governance and human oversight throughout the project lifecycle.
+Audit Trails
+```
 
 ---
 
-# Success Criteria
+## Rule
 
-Agentix OS succeeds when it helps users:
-
-* Reduce project uncertainty
-* Improve planning quality
-* Reuse organizational knowledge
-* Make better decisions
-* Improve project outcomes
-* Learn from previous work
-* Maintain traceability across the project lifecycle
+Important actions must be traceable.
 
 ---
 
-# Long-Term Vision
+# Principle 7 — Context Minimization
 
-Agentix OS evolves from a project assistant into a complete project operating system capable of:
+Agents should receive only the information required for their task.
 
-* Managing complex initiatives
-* Coordinating multiple AI agents
-* Building reusable organizational intelligence
-* Continuously improving project execution through learning and experience
+---
 
-The ultimate goal is to create a system where every project contributes to making future projects more successful.
+## Avoid
+
+```text
+Entire Project Context
+
+Entire Knowledge Base
+
+Entire Workspace
+```
+
+---
+
+## Prefer
+
+```text
+Relevant Context
+
+Summaries
+
+References
+```
+
+---
+
+## Goal
+
+Reduce complexity and token usage.
+
+---
+
+# Principle 8 — Token Efficiency
+
+Tokens are a resource.
+
+They should be managed carefully.
+
+---
+
+## Strategy
+
+```text
+Summary First
+
+Details On Demand
+
+Context Compression
+
+Selective Retrieval
+```
+
+---
+
+## Rule
+
+Never load unnecessary context.
+
+---
+
+# Principle 9 — Capability-Based Agents
+
+Agents are selected based on capabilities.
+
+Not based on hardcoded implementations.
+
+---
+
+## Example
+
+Bad:
+
+```text
+Use ResearchAgent
+```
+
+Good:
+
+```text
+Find Agent With RESEARCH Capability
+```
+
+---
+
+## Benefits
+
+```text
+Extensibility
+
+Flexibility
+
+Custom Agents
+
+Plugin Support
+```
+
+---
+
+# Principle 10 — Parent Agent Governance
+
+The Parent Agent coordinates.
+
+Specialized Agents execute.
+
+---
+
+## Parent Agent Responsibilities
+
+```text
+Workflow Selection
+
+Agent Selection
+
+Context Selection
+
+Progress Tracking
+```
+
+---
+
+## Parent Agent Restrictions
+
+```text
+No Specialized Analysis
+
+No Direct Approval Authority
+```
+
+---
+
+# Principle 11 — Event-Driven Architecture
+
+System components communicate through events.
+
+---
+
+## Example
+
+```text
+ProjectCreated
+       ↓
+Subscribers React
+```
+
+---
+
+## Benefits
+
+```text
+Loose Coupling
+
+Scalability
+
+Traceability
+```
+
+---
+
+# Principle 12 — Command Responsibility Separation
+
+Commands request actions.
+
+Events report actions.
+
+---
+
+## Commands
+
+```text
+CreateProject
+
+CreateTask
+
+RequestApproval
+```
+
+---
+
+## Events
+
+```text
+ProjectCreated
+
+TaskCreated
+
+ApprovalRequested
+```
+
+---
+
+## Rule
+
+Commands and events must remain separate.
+
+---
+
+# Principle 13 — Single Source Of Truth
+
+Every business entity should have one authoritative source.
+
+Avoid duplicate state.
+
+---
+
+## Examples
+
+```text
+Project Status
+
+Task Status
+
+Approval Status
+```
+
+---
+
+# Principle 14 — Incremental Delivery
+
+Build in small, validated steps.
+
+---
+
+## Preferred
+
+```text
+Phase 0
+ ↓
+Phase 1
+ ↓
+Phase 2
+```
+
+---
+
+## Avoid
+
+```text
+Build Everything First
+```
+
+---
+
+# Principle 15 — Simplicity First
+
+Prefer simple solutions.
+
+Complexity must be justified.
+
+---
+
+## Rule
+
+Do not introduce infrastructure, services, or patterns without a clear reason.
+
+---
+
+# Principle 16 — Auditability Everywhere
+
+Every important action should be traceable.
+
+---
+
+## Track
+
+```text
+Who
+
+What
+
+When
+
+Why
+```
+
+---
+
+## Sources
+
+```text
+Events
+
+Reviews
+
+Approvals
+
+Logs
+```
+
+---
+
+# Principle 17 — Reuse Before Reinvention
+
+Before creating new structures:
+
+```text
+Check Existing Knowledge
+      ↓
+Check Existing Patterns
+      ↓
+Check Existing Solutions
+```
+
+---
+
+## Goal
+
+Reduce duplication.
+
+---
+
+# Principle 18 — Modular Architecture
+
+Every major component should be independently replaceable.
+
+---
+
+## Examples
+
+```text
+AI Providers
+
+Database Layer
+
+Agent Implementations
+
+UI Components
+```
+
+---
+
+# Principle 19 — Security By Default
+
+Protect user data from the beginning.
+
+---
+
+## Never Store
+
+```text
+API Keys
+
+Secrets
+
+Credentials
+```
+
+inside source code.
+
+---
+
+## Use
+
+```text
+VS Code Secret Storage
+```
+
+---
+
+# Principle 20 — Human-Centered Automation
+
+Automation should reduce effort.
+
+Automation should not remove accountability.
+
+---
+
+## Final Rule
+
+Agentix OS exists to help humans:
+
+```text
+Think Better
+
+Plan Better
+
+Execute Better
+
+Learn Faster
+
+Improve Continuously
+```
+
+The guiding principle of the entire platform is:
+
+```text
+AI Recommends
+
+Humans Decide
+```

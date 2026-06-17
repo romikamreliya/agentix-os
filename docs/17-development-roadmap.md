@@ -1,484 +1,334 @@
-# Runtime Engine
+# Development Roadmap
 
 ## Overview
 
-The Runtime Engine is the core execution layer of Agentix OS.
+This roadmap defines the implementation strategy for Agentix OS.
 
-It is responsible for:
+The goal is to build a stable, maintainable, and scalable platform through incremental delivery.
 
-* Prompt processing
-* Workflow orchestration
-* Agent coordination
-* Context management
-* Event handling
-* Memory optimization
-* Token optimization
-
-The Runtime Engine acts as the operating system behind the user interface.
+Every phase must produce a working system.
 
 ---
 
-# Purpose
+# Development Philosophy
 
-The Runtime Engine exists to:
+## Build Foundations First
 
-* Execute workflows
-* Coordinate agents
-* Manage context
-* Enforce governance
-* Optimize memory usage
-* Optimize token consumption
-* Maintain traceability
+Do not start with advanced agents.
 
----
-
-# High-Level Architecture
+Build:
 
 ```text
-User
-  ↓
-VS Code UI
-  ↓
-Runtime Engine
-  ↓
-Parent Agent
-  ↓
-Workflow Engine
-  ↓
-Specialized Agents
-  ↓
-Services
-  ↓
-Database
-```
-
----
-
-# Runtime Components
-
-```text
-Prompt Classifier
-
-Parent Agent
-
-Workflow Engine
-
-Agent Manager
-
-Memory Engine
-
-Token Engine
-
-Event Bus
-
-Context Manager
-
-Queue Manager
-
-AI Provider Manager
-```
-
----
-
-# Prompt Classifier
-
-## Purpose
-
-Identify user intent.
-
----
-
-## Input
-
-```text
-User Prompt
-```
-
----
-
-## Output
-
-```text
-Prompt Type
-
-Confidence Score
-
-Required Workflow
-```
-
----
-
-## Supported Types
-
-```text
-IDEA
-
-TASK
-
-PROJECT
-
-EXISTING_PROJECT
-
-KNOWLEDGE
-
-AGENT
-
-SKILL
-
-SYSTEM
-
-REVIEW
-
-APPROVAL
-```
-
----
-
-# Parent Agent
-
-## Purpose
-
-Central coordinator.
-
----
-
-## Responsibilities
-
-```text
-Workflow Selection
-
-Agent Selection
-
-Context Coordination
-
-Approval Coordination
-
-Progress Tracking
-```
-
----
-
-## Rules
-
-The Parent Agent:
-
-```text
-May Coordinate
-```
-
-The Parent Agent:
-
-```text
-Should Not Perform
-Specialized Work
-```
-
----
-
-# Workflow Engine
-
-## Purpose
-
-Execute structured workflows.
-
----
-
-## Examples
-
-```text
-Discovery Workflow
-
-Research Workflow
-
-Planning Workflow
-
-Review Workflow
-
-Approval Workflow
-```
-
----
-
-# Workflow Structure
-
-```text
-Start
-  ↓
-Steps
-  ↓
-Validation
-  ↓
-Completion
-```
-
----
-
-# Workflow States
-
-```text
-Created
-
-Running
-
-Paused
-
-Blocked
-
-Completed
-
-Cancelled
-```
-
----
-
-# Agent Manager
-
-## Purpose
-
-Manage agents.
-
----
-
-## Responsibilities
-
-```text
-Agent Creation
-
-Agent Assignment
-
-Agent Lifecycle
-
-Agent Execution
-```
-
----
-
-# Agent Execution Model
-
-```text
-Parent Agent
-      ↓
-Assign Work
-      ↓
-Agent Executes
-      ↓
-Results Returned
-      ↓
-Parent Agent
-```
-
----
-
-# Agent Communication
-
-Avoid:
-
-```text
-Agent A
+Foundation
  ↓
-Agent B
-```
-
-Prefer:
-
-```text
-Agent A
+Projects
  ↓
-Parent Agent
+Runtime
  ↓
-Agent B
+Agents
+ ↓
+Knowledge
 ```
 
 ---
 
-# Discovery Workflow
+## Local First
 
-```text
-Prompt
- ↓
-Discovery Agent
- ↓
-Questions
- ↓
-Discovery Report
-```
+The MVP must run completely on the user's machine.
+
+No cloud infrastructure required.
 
 ---
 
-# Research Workflow
+## Incremental Delivery
+
+Each phase must:
 
 ```text
-Discovery Report
+Build
  ↓
-Research Agent
- ↓
-Research Findings
-```
-
----
-
-# Planning Workflow
-
-```text
-Discovery
- ↓
-Research
- ↓
-Planning Agent
- ↓
-Project Plan
-```
-
----
-
-# Review Workflow
-
-```text
-Entity
- ↓
-Review Agent
- ↓
-Review Findings
-```
-
----
-
-# Approval Workflow
-
-```text
-Approval Request
+Test
  ↓
 Review
  ↓
-Decision
+Approve
+ ↓
+Continue
 ```
 
 ---
 
-# Memory Engine
+# Phase 0 — Development Foundation
 
-## Purpose
+## Goal
 
-Manage context loading.
+Create the development platform.
 
 ---
 
-# Memory Layers
+## Deliverables
 
 ```text
-L1 Active Context
+Monorepo Setup
 
-L2 Session Context
+pnpm Workspace
 
-L3 Project Context
+Turbo
 
-L4 Knowledge Context
+TypeScript
 
-L5 Archive Context
+ESLint
+
+Prettier
+
+Vitest
+
+GitHub Actions
+
+Build Pipeline
+
+Release Pipeline
 ```
 
 ---
 
-# Memory Rules
+## Success Criteria
 
 ```text
-Load Minimum Required Context
-```
+Build Works
 
-Avoid:
+Lint Works
 
-```text
-Load Entire Workspace
+Tests Run
+
+CI Pipeline Passes
 ```
 
 ---
 
-# Context Manager
+# Phase 1 — VS Code Foundation
 
-## Purpose
+## Goal
 
-Build context packages.
+Create the extension shell.
 
 ---
 
-## Responsibilities
+## Deliverables
 
 ```text
+VS Code Extension
+
+Sidebar
+
+Dashboard
+
+Settings
+
+Workspace Initialization
+```
+
+---
+
+## Local Workspace
+
+```text
+.agentix/
+
+settings/
+logs/
+projects/
+knowledge/
+```
+
+---
+
+## Success Criteria
+
+```text
+Extension Loads
+
+Dashboard Opens
+
+Workspace Created
+```
+
+---
+
+# Phase 2 — Database Foundation
+
+## Goal
+
+Create local storage.
+
+---
+
+## Deliverables
+
+```text
+SQLite
+
+Drizzle ORM
+
+Migrations
+
+Repositories
+
+Database Services
+```
+
+---
+
+## Initial Tables
+
+```text
+projects
+
+phases
+
+tasks
+
+knowledge
+
+reviews
+
+approvals
+
+events
+
+settings
+```
+
+---
+
+## Success Criteria
+
+```text
+Data Persists
+
+Migrations Run Successfully
+```
+
+---
+
+# Phase 3 — Project Management
+
+## Goal
+
+Manage projects and tasks.
+
+---
+
+## Deliverables
+
+```text
+Projects
+
+Phases
+
+Tasks
+
+Sub Tasks
+
+Project Explorer
+```
+
+---
+
+## Success Criteria
+
+```text
+Project Lifecycle Works
+```
+
+---
+
+# Phase 4 — Runtime Engine
+
+## Goal
+
+Create execution infrastructure.
+
+---
+
+## Deliverables
+
+```text
+Runtime Engine
+
+Event Bus
+
+Command Bus
+
+Context Manager
+
+Workflow Manager
+
+Queue Manager
+```
+
+---
+
+## Success Criteria
+
+```text
+Workflows Execute
+
+Events Publish
+
+Commands Execute
+```
+
+---
+
+# Phase 5 — Parent Agent
+
+## Goal
+
+Introduce orchestration.
+
+---
+
+## Deliverables
+
+```text
+Prompt Classification
+
+Workflow Selection
+
+Agent Coordination
+
 Context Selection
-
-Context Ranking
-
-Context Compression
-
-Context Retrieval
 ```
 
 ---
 
-# Context Ranking
-
-Factors:
+## Success Criteria
 
 ```text
-Relevance
-
-Priority
-
-Recency
-
-Confidence
+Parent Agent Routes Requests Correctly
 ```
 
 ---
 
-# Token Engine
+# Phase 6 — Agent Registry
 
-## Purpose
+## Goal
 
-Reduce token consumption.
+Support capability-based agents.
 
 ---
 
-## Responsibilities
+## Deliverables
 
 ```text
-Compression
+Agent Registry
 
-Summarization
+Capability Registration
 
-Budget Tracking
+Capability Discovery
 
-Usage Tracking
-```
-
----
-
-# Token Strategy
-
-```text
-Summary First
-
-Details On Demand
-```
-
----
-
-# Event Bus
-
-## Purpose
-
-Enable loose coupling.
-
----
-
-# Event Flow
-
-```text
-Action
- ↓
-Event
- ↓
-Subscribers
+Agent Selection
 ```
 
 ---
@@ -486,331 +336,445 @@ Subscribers
 ## Example
 
 ```text
-Project Created
- ↓
-ProjectCreated Event
- ↓
-Interested Services
-```
-
----
-
-# Core Events
-
-```text
-ProjectCreated
-
-TaskCreated
-
-ReviewCreated
-
-ApprovalRequested
-
-KnowledgeCreated
-
-BlueprintUpdated
-```
-
----
-
-# Queue Manager
-
-## Purpose
-
-Handle background jobs.
-
----
-
-# Recommended Technology
-
-```text
-BullMQ
-```
-
----
-
-# Background Tasks
-
-Examples:
-
-```text
-Research
-
-Knowledge Extraction
-
-Large Reviews
-
-Blueprint Analysis
-```
-
----
-
-# AI Provider Manager
-
-## Purpose
-
-Manage AI integrations.
-
----
-
-# Supported Providers
-
-```text
-OpenAI
-
-Anthropic
-
-Gemini
-```
-
----
-
-# Provider Interface
-
-```text
-generate()
-
-review()
-
-analyze()
-
-summarize()
-```
-
----
-
-# Provider Selection
-
-The runtime should select providers based on:
-
-```text
-Task Type
-
-Cost
-
-Context Size
-
-User Preferences
-```
-
----
-
-# State Management
-
-## Purpose
-
-Track runtime state.
-
----
-
-## Examples
-
-```text
-Running Workflows
-
-Active Agents
-
-Pending Approvals
-
-Open Reviews
-```
-
----
-
-# Error Handling
-
-## Strategy
-
-```text
-Detect
-
-Log
-
-Retry
-
-Escalate
-```
-
----
-
-# Retry Policy
-
-For transient failures:
-
-```text
-Attempt 1
-
-Attempt 2
-
-Attempt 3
-
-Fail
-```
-
----
-
-# Logging
-
-Important actions should be logged.
-
-Examples:
-
-```text
-Workflow Started
-
-Workflow Completed
-
-Agent Assigned
-
-Approval Granted
-
-Knowledge Created
-```
-
----
-
-# Metrics
-
-Track:
-
-```text
-Workflow Duration
-
-Agent Activity
-
-Token Usage
-
-Memory Usage
-
-Queue Activity
-
-AI Requests
-```
-
----
-
-# Governance Enforcement
-
-The Runtime Engine enforces:
-
-```text
-AI Recommends
-
-Humans Decide
-```
-
----
-
-# Approval Enforcement
-
-The runtime must prevent:
-
-```text
-Blueprint Updates
-
-Skill Updates
-
-Phase Completion
-```
-
-when required approvals are missing.
-
----
-
-# Security
-
-The runtime should protect:
-
-```text
-API Keys
-
-Project Data
-
-Knowledge Data
-```
-
----
-
-# Runtime Startup
-
-```text
-VS Code Starts
+RESEARCH
       ↓
-Agentix Extension Loads
+Agent Registry
       ↓
-Runtime Starts
-      ↓
-Services Register
-      ↓
-Event Bus Starts
-      ↓
-Ready
+Research Agent
 ```
 
 ---
 
-# Runtime Shutdown
+## Success Criteria
 
 ```text
-Save State
- ↓
-Flush Queue
- ↓
-Close Database
- ↓
-Shutdown
+Agents Selected By Capability
 ```
-
-When VS Code closes:
-
-```text
-Agentix Runtime Stops
-```
-
-This aligns with the local-first design.
 
 ---
 
-# Future Possibilities
+# Phase 7 — Discovery Agent
 
-Future versions may support:
+## Goal
 
-```text
-Distributed Agents
-
-Remote Workers
-
-Cloud Execution
-
-Plugin Runtime
-```
-
-These are outside MVP scope.
+Gather requirements.
 
 ---
 
-# Runtime Engine Summary
-
-The Runtime Engine is the heart of Agentix OS.
-
-It coordinates:
+## Deliverables
 
 ```text
-Workflows
+Discovery Agent
 
-Agents
+Question Engine
 
-Memory
+Discovery Reports
+```
 
-Tokens
+---
 
-Events
+## Success Criteria
+
+```text
+Discovery Reports Generated
+```
+
+---
+
+# Phase 8 — Research Agent
+
+## Goal
+
+Research solutions.
+
+---
+
+## Deliverables
+
+```text
+Technology Analysis
+
+Risk Analysis
+
+Research Reports
+```
+
+---
+
+## Success Criteria
+
+```text
+Research Reports Generated
+```
+
+---
+
+# Phase 9 — Planning Agent
+
+## Goal
+
+Generate execution plans.
+
+---
+
+## Deliverables
+
+```text
+Project Plans
+
+Phase Plans
+
+Task Plans
+```
+
+---
+
+## Success Criteria
+
+```text
+Executable Plans Created
+```
+
+---
+
+# Phase 10 — Governance System
+
+## Goal
+
+Introduce controlled decision making.
+
+---
+
+## Deliverables
+
+```text
+Reviews
 
 Approvals
 
-Knowledge
+Risks
+
+Recommendations
 ```
 
-while enforcing governance, optimizing resources, and maintaining a consistent execution model across the entire platform.
+---
 
-The Runtime Engine transforms Agentix OS from a collection of screens into a functioning AI-powered operating system.
+## Success Criteria
+
+```text
+Review Workflow Works
+
+Approval Workflow Works
+```
+
+---
+
+# Phase 11 — Knowledge System
+
+## Goal
+
+Capture organizational learning.
+
+---
+
+## Deliverables
+
+```text
+Knowledge Base
+
+Lessons Learned
+
+Knowledge Search
+
+Knowledge Categories
+```
+
+---
+
+## Success Criteria
+
+```text
+Knowledge Reuse Works
+```
+
+---
+
+# Phase 12 — Memory Optimization
+
+## Goal
+
+Reduce context size.
+
+---
+
+## Deliverables
+
+```text
+Context Package
+
+Context Compression
+
+Summary Builder
+
+Progressive Loading
+```
+
+---
+
+## Success Criteria
+
+```text
+Reduced Context Usage
+```
+
+---
+
+# Phase 13 — Token Optimization
+
+## Goal
+
+Reduce AI cost and waste.
+
+---
+
+## Deliverables
+
+```text
+Token Tracking
+
+Token Budgeting
+
+Usage Analytics
+
+AI Cost Tracking
+```
+
+---
+
+## Success Criteria
+
+```text
+Token Usage Measured
+```
+
+---
+
+# Phase 14 — Blueprint System (v1.1)
+
+## Goal
+
+Create reusable project patterns.
+
+---
+
+## Deliverables
+
+```text
+Blueprints
+
+Blueprint Versions
+
+Blueprint Improvements
+```
+
+---
+
+## Dependency
+
+Requires:
+
+```text
+Knowledge System
+```
+
+---
+
+# Phase 15 — Skill System (v1.2)
+
+## Goal
+
+Create reusable agent capabilities.
+
+---
+
+## Deliverables
+
+```text
+Skills
+
+Skill Versions
+
+Skill Improvements
+```
+
+---
+
+## Dependency
+
+Requires:
+
+```text
+Knowledge System
+
+Blueprint System
+```
+
+---
+
+# MVP Scope
+
+Included:
+
+```text
+VS Code Extension
+
+Projects
+
+Tasks
+
+Runtime Engine
+
+Parent Agent
+
+Agent Registry
+
+Discovery Agent
+
+Research Agent
+
+Planning Agent
+
+Reviews
+
+Approvals
+
+Knowledge System
+```
+
+---
+
+# Excluded From MVP
+
+```text
+Blueprint System
+
+Skill System
+
+Marketplace
+
+Cloud Sync
+
+Team Collaboration
+
+Distributed Agents
+
+Remote Execution
+```
+
+---
+
+# Release Plan
+
+## MVP
+
+```text
+Phase 0 → Phase 13
+```
+
+---
+
+## Version 1.1
+
+```text
+Blueprint System
+```
+
+---
+
+## Version 1.2
+
+```text
+Skill System
+```
+
+---
+
+## Future
+
+```text
+Marketplace
+
+Custom Agents
+
+Multi User
+
+Cloud Sync
+
+Analytics
+```
+
+---
+
+# Success Metrics
+
+Technical:
+
+```text
+Startup Time
+
+Memory Usage
+
+Token Usage
+
+Workflow Success Rate
+```
+
+---
+
+Product:
+
+```text
+Projects Created
+
+Tasks Completed
+
+Knowledge Records Created
+
+Workflow Completion Rate
+```
+
+---
+
+# Final Goal
+
+Agentix OS should evolve through:
+
+```text
+Foundation
+ ↓
+Projects
+ ↓
+Runtime
+ ↓
+Agents
+ ↓
+Governance
+ ↓
+Knowledge
+ ↓
+Blueprints
+ ↓
+Skills
+```
+
+while maintaining:
+
+```text
+Local First
+
+Human Governance
+
+Knowledge Reuse
+
+Continuous Improvement
+```
