@@ -66,6 +66,12 @@ docs/
 23-event-catalog.md
 24-agent-contracts.md
 25-workflow-definitions.md
+26-command-bus.md
+27-agent-registry.md
+28-adr-guidelines.md
+29-monorepo-setup.md
+30-ipc-protocol.md
+31-package-dependencies.md
 ```
 
 Do not start coding before understanding these documents.
