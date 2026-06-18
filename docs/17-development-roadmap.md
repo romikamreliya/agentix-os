@@ -71,7 +71,7 @@ Create the development platform.
 ```text
 Monorepo Setup
 
-pnpm Workspace
+npm Workspace
 
 Turbo
 

@@ -116,7 +116,7 @@ BullMQ
 Package Manager:
 
 ```text
-pnpm
+npm
 ```
 
 ---

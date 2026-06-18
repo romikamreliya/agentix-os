@@ -33,7 +33,7 @@ Incremental Builds
 Package Manager:
 
 ```text id="ewluhc"
-pnpm
+npm
 ```
 
 ---
@@ -74,7 +74,7 @@ scripts/
 tests/
 
 package.json
-pnpm-workspace.yaml
+package-lock.json
 turbo.json
 tsconfig.base.json
 
@@ -265,12 +265,17 @@ Gemini
 
 # Workspace Configuration
 
-## pnpm-workspace.yaml
+## Workspaces (package.json)
 
-```yaml id="f7m7qn"
-packages:
-  - apps/*
-  - packages/*
+npm workspaces are declared in the root `package.json`. There is no separate workspace file.
+
+```json id="f7m7qn"
+{
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
 ```
 
 ---
@@ -682,8 +687,6 @@ before merge.
 Required files:
 
 ```text id="0k0gjo"
-pnpm-workspace.yaml
-
 package.json
 
 turbo.json
@@ -721,7 +724,7 @@ Clear Dependencies
 
 ## Rule 1
 
-Use pnpm workspace.
+Use npm workspaces.
 
 ---
 

@@ -355,7 +355,7 @@ Not Included:
 
 * VS Code
 * Node.js 22+
-* npm or pnpm
+* npm
 
 ### Installation
 
