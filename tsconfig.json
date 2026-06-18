@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/core" },
+    { "path": "./packages/database" },
+    { "path": "./packages/services" },
+    { "path": "./packages/runtime" },
+    { "path": "./packages/agents" },
+    { "path": "./packages/ai" },
+    { "path": "./apps/vscode-extension" }
+  ]
+}

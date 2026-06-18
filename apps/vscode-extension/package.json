@@ -1,0 +1,56 @@
+{
+  "name": "agentix-os-vscode",
+  "displayName": "Agentix OS",
+  "description": "Local-first AI operating system for projects, knowledge, and agents.",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "publisher": "agentix",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentix",
+          "title": "Agentix OS",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentix": [
+        {
+          "id": "agentix.home",
+          "name": "Agentix OS"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agentix.openDashboard",
+        "title": "Agentix: Open Dashboard"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@agentix/agents": "*",
+    "@agentix/ai": "*",
+    "@agentix/core": "*",
+    "@agentix/database": "*",
+    "@agentix/runtime": "*",
+    "@agentix/services": "*",
+    "@agentix/shared": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0"
+  }
+}

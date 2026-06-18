@@ -1,0 +1,9 @@
+**/dist/**
+**/node_modules/**
+**/*.tsbuildinfo
+**/coverage/**
+.turbo/**
+package-lock.json
+
+# Authored documentation (hand-formatted with ASCII diagrams)
+**/*.md
