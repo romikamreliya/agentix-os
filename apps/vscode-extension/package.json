@@ -103,27 +103,23 @@
           "group": "navigation@3"
         }
       ]
-    },
-    "configuration": {
-      "title": "Agentix OS",
-      "properties": {
-        "agentix.model": {
-          "type": "string",
-          "default": "Claude",
-          "enum": ["Claude", "GPT", "Gemini", "DeepSeek"],
-          "description": "Default AI model used for new requests."
-        }
-      }
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
     "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "@google/generative-ai": "^0.21.0",
+    "openai": "^4.70.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.90.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.0"
   }
 }

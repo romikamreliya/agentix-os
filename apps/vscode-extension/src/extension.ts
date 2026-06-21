@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import { KeyStore } from "./config/keyStore";
+import { ProviderManager } from "./providerManager";
+import { PROVIDERS } from "./providers/registry";
+import type { ProviderId } from "./providers/types";
 
 const VIEW_ID = "agentix.home";
 const PANEL_VIEW_ID = "agentix.panelHome";
@@ -6,11 +10,15 @@ const PANEL_VIEW_ID = "agentix.panelHome";
 /** Messages sent from the webview to the extension host. */
 type InboundMessage =
   | { type: "ready" }
-  | { type: "submit"; prompt: string; model: string }
-  | { type: "modelChanged"; model: string }
+  | { type: "submit"; prompt: string }
   | { type: "approve" }
   | { type: "newChat" }
-  | { type: "action"; action: "attach" | "code" | "image" };
+  | { type: "action"; action: "attach" | "code" | "image" }
+  | { type: "getProviders" }
+  | { type: "setActiveProvider"; id: ProviderId }
+  | { type: "addProviderKey"; id: ProviderId }
+  | { type: "removeProviderKey"; id: ProviderId }
+  | { type: "revalidateProvider"; id: ProviderId };
 
 /**
  * Drives a single Agentix OS webview (the hero prompt home screen).
@@ -19,8 +27,19 @@ type InboundMessage =
  * so the experience is identical wherever the user docks it.
  */
 class AgentixController {
-  constructor(private readonly webview: vscode.Webview) {
+  private readonly unsubscribe: () => void;
+
+  constructor(
+    private readonly webview: vscode.Webview,
+    private readonly providers: ProviderManager
+  ) {
     webview.onDidReceiveMessage((message: InboundMessage) => this.handleMessage(message));
+    // Re-render provider state in this webview whenever it changes anywhere.
+    this.unsubscribe = providers.onDidChange(() => void this.postProviders());
+  }
+
+  dispose(): void {
+    this.unsubscribe();
   }
 
   /** Resets the view back to the empty hero state. */
@@ -31,20 +50,12 @@ class AgentixController {
   private async handleMessage(message: InboundMessage): Promise<void> {
     switch (message.type) {
       case "ready":
-        this.post({
-          type: "init",
-          model: vscode.workspace.getConfiguration("agentix").get("model", "Claude")
-        });
-        return;
-
-      case "modelChanged":
-        await vscode.workspace
-          .getConfiguration("agentix")
-          .update("model", message.model, vscode.ConfigurationTarget.Global);
+      case "getProviders":
+        await this.postProviders();
         return;
 
       case "submit":
-        await this.runPlanningFlow(message.prompt, message.model);
+        await this.runPlanningFlow(message.prompt);
         return;
 
       case "approve":
@@ -58,6 +69,68 @@ class AgentixController {
       case "action":
         await this.handleAction(message.action);
         return;
+
+      case "setActiveProvider": {
+        const result = await this.providers.setActive(message.id);
+        if (!result.ok) {
+          void vscode.window.showWarningMessage(result.error ?? "Could not select provider.");
+        }
+        return;
+      }
+
+      case "addProviderKey":
+        await this.handleAddKey(message.id);
+        return;
+
+      case "removeProviderKey":
+        await this.handleRemoveKey(message.id);
+        return;
+
+      case "revalidateProvider": {
+        const result = await this.providers.revalidate(message.id);
+        void (result.ok
+          ? vscode.window.showInformationMessage("API key is valid.")
+          : vscode.window.showWarningMessage(result.error ?? "Validation failed."));
+        return;
+      }
+    }
+  }
+
+  private async handleAddKey(id: ProviderId): Promise<void> {
+    const provider = PROVIDERS.find((p) => p.id === id);
+    if (!provider) {
+      return;
+    }
+    const key = await vscode.window.showInputBox({
+      title: `${provider.label} API key`,
+      prompt: `Enter your ${provider.vendor} API key (${provider.keyHint}).`,
+      password: true,
+      ignoreFocusOut: true,
+      placeHolder: provider.keyHint
+    });
+    if (key === undefined) {
+      return; // cancelled
+    }
+
+    const result = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `Validating ${provider.label} key…` },
+      () => this.providers.saveKey(id, key)
+    );
+
+    void (result.ok
+      ? vscode.window.showInformationMessage(`${provider.label} connected.`)
+      : vscode.window.showErrorMessage(result.error ?? "Could not add the API key."));
+  }
+
+  private async handleRemoveKey(id: ProviderId): Promise<void> {
+    const provider = PROVIDERS.find((p) => p.id === id);
+    const choice = await vscode.window.showWarningMessage(
+      `Remove the ${provider?.label ?? "provider"} API key?`,
+      { modal: true },
+      "Remove"
+    );
+    if (choice === "Remove") {
+      await this.providers.removeKey(id);
     }
   }
 
@@ -103,9 +176,16 @@ class AgentixController {
 
   /**
    * Simulated request → plan flow described in the README user flow.
-   * Replace each phase with real agent calls as the runtime lands.
+   * Replace each phase with real agent calls as the runtime lands; the active
+   * provider's API key is already configured and validated by this point.
    */
-  private async runPlanningFlow(prompt: string, model: string): Promise<void> {
+  private async runPlanningFlow(prompt: string): Promise<void> {
+    const active = await this.providers.getActiveConfigured();
+    if (!active) {
+      this.post({ type: "needsProvider" });
+      return;
+    }
+
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
     this.post({ type: "status", phase: "analyze" });
@@ -114,7 +194,11 @@ class AgentixController {
     this.post({ type: "status", phase: "plan" });
     await wait(1100);
 
-    this.post({ type: "plan", model, steps: buildPlan(prompt) });
+    this.post({ type: "plan", model: active.label, steps: buildPlan(prompt) });
+  }
+
+  private async postProviders(): Promise<void> {
+    this.post({ type: "providers", statuses: await this.providers.getStatuses() });
   }
 
   private post(message: unknown): void {
@@ -122,19 +206,21 @@ class AgentixController {
   }
 }
 
-/**
- * Provides the Agentix OS home screen as a webview view.
- * The same provider class backs both the activity-bar view and the panel view.
- */
+/** Provides the Agentix OS home screen as a webview view. */
 class AgentixHomeProvider implements vscode.WebviewViewProvider {
   private controller?: AgentixController;
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly providers: ProviderManager
+  ) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     webviewView.webview.options = webviewOptions(this.extensionUri);
     webviewView.webview.html = getHtml(webviewView.webview, this.extensionUri);
-    this.controller = new AgentixController(webviewView.webview);
+    this.controller?.dispose();
+    this.controller = new AgentixController(webviewView.webview, this.providers);
+    webviewView.onDidDispose(() => this.controller?.dispose());
   }
 
   newChat(): void {
@@ -147,7 +233,7 @@ let sidePanel: vscode.WebviewPanel | undefined;
 let sidePanelController: AgentixController | undefined;
 
 /** Opens (or reveals) the Agentix OS home as a panel beside the editor. */
-function openSidePanel(extensionUri: vscode.Uri): void {
+function openSidePanel(extensionUri: vscode.Uri, providers: ProviderManager): void {
   if (sidePanel) {
     sidePanel.reveal(vscode.ViewColumn.Beside);
     return;
@@ -161,9 +247,10 @@ function openSidePanel(extensionUri: vscode.Uri): void {
   );
   sidePanel.iconPath = vscode.Uri.joinPath(extensionUri, "resources", "icon.svg");
   sidePanel.webview.html = getHtml(sidePanel.webview, extensionUri);
-  sidePanelController = new AgentixController(sidePanel.webview);
+  sidePanelController = new AgentixController(sidePanel.webview, providers);
 
   sidePanel.onDidDispose(() => {
+    sidePanelController?.dispose();
     sidePanel = undefined;
     sidePanelController = undefined;
   });
@@ -208,14 +295,19 @@ function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
         <h1>👋 Welcome to Agentix OS</h1>
         <p class="subtitle">Your AI Development Assistant</p>
       </div>
-      <div class="model-selector">
-        <label class="visually-hidden" for="model">Model</label>
-        <select id="model">
-          <option value="Claude">Claude</option>
-          <option value="GPT">GPT</option>
-          <option value="Gemini">Gemini</option>
-          <option value="DeepSeek">DeepSeek</option>
-        </select>
+      <div class="provider-control">
+        <button class="provider-pill" id="provider-pill" title="AI providers">
+          <span class="dot" id="provider-dot"></span>
+          <span id="provider-name">No provider</span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="providers-panel hidden" id="providers-panel">
+          <div class="panel-head">
+            <span>AI Providers</span>
+            <span class="panel-hint">Add a key to enable a provider</span>
+          </div>
+          <div id="providers-list"></div>
+        </div>
       </div>
     </header>
 
@@ -286,8 +378,11 @@ function getNonce(): string {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  const sidebarProvider = new AgentixHomeProvider(context.extensionUri);
-  const panelProvider = new AgentixHomeProvider(context.extensionUri);
+  const keyStore = new KeyStore(context.secrets);
+  const providers = new ProviderManager(keyStore, context.globalState, PROVIDERS);
+
+  const sidebarProvider = new AgentixHomeProvider(context.extensionUri, providers);
+  const panelProvider = new AgentixHomeProvider(context.extensionUri, providers);
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(VIEW_ID, sidebarProvider, {
@@ -300,7 +395,7 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand(`${VIEW_ID}.focus`);
     }),
     vscode.commands.registerCommand("agentix.openPanel", () =>
-      openSidePanel(context.extensionUri)
+      openSidePanel(context.extensionUri, providers)
     ),
     vscode.commands.registerCommand("agentix.newChat", () => {
       sidebarProvider.newChat();
@@ -311,7 +406,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Auto-open the home as a panel beside the editor on startup.
-  openSidePanel(context.extensionUri);
+  openSidePanel(context.extensionUri, providers);
 
   // Reveal the Secondary Side Bar (the "right section") so it's ready to dock into.
   void revealRightSection();

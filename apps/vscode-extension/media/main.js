@@ -4,14 +4,20 @@
 
   const promptEl = /** @type {HTMLTextAreaElement} */ (document.getElementById("prompt"));
   const sendBtn = /** @type {HTMLButtonElement} */ (document.getElementById("send"));
-  const modelEl = /** @type {HTMLSelectElement} */ (document.getElementById("model"));
   const emptyState = /** @type {HTMLElement} */ (document.getElementById("empty-state"));
   const thread = /** @type {HTMLElement} */ (document.getElementById("thread"));
   const chips = /** @type {HTMLElement} */ (document.getElementById("context-chips"));
 
+  const providerPill = /** @type {HTMLButtonElement} */ (document.getElementById("provider-pill"));
+  const providerDot = /** @type {HTMLElement} */ (document.getElementById("provider-dot"));
+  const providerName = /** @type {HTMLElement} */ (document.getElementById("provider-name"));
+  const providersPanel = /** @type {HTMLElement} */ (document.getElementById("providers-panel"));
+  const providersList = /** @type {HTMLElement} */ (document.getElementById("providers-list"));
+
   /** @type {string[]} */
   let attachments = [];
   let busy = false;
+  let hasActiveProvider = false;
   /** @type {HTMLElement | null} */
   let statusBubble = null;
 
@@ -39,20 +45,98 @@
 
   sendBtn.addEventListener("click", submit);
 
-  modelEl.addEventListener("change", () => {
-    vscode.postMessage({ type: "modelChanged", model: modelEl.value });
-  });
-
   document.querySelectorAll(".icon-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       vscode.postMessage({ type: "action", action: btn.getAttribute("data-action") });
     });
   });
 
+  // ---------- Provider panel ----------
+  providerPill.addEventListener("click", (e) => {
+    e.stopPropagation();
+    providersPanel.classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      !providersPanel.classList.contains("hidden") &&
+      !providersPanel.contains(/** @type {Node} */ (e.target)) &&
+      e.target !== providerPill
+    ) {
+      providersPanel.classList.add("hidden");
+    }
+  });
+
+  const STATUS_META = {
+    valid: { label: "Connected", cls: "ok" },
+    invalid: { label: "Invalid key", cls: "err" },
+    validating: { label: "Checking…", cls: "warn" },
+    unknown: { label: "", cls: "" }
+  };
+
+  function renderProviders(statuses) {
+    const active = statuses.find((s) => s.active && s.configured);
+    hasActiveProvider = Boolean(active);
+
+    providerName.textContent = active ? active.label : "No provider";
+    providerDot.className = "dot " + (active ? "ok" : "off");
+
+    providersList.innerHTML = "";
+    statuses.forEach((p) => {
+      const row = document.createElement("div");
+      row.className = "provider-row" + (p.active && p.configured ? " active" : "");
+
+      const badge = p.configured
+        ? STATUS_META[p.status] || STATUS_META.unknown
+        : { label: "Not configured", cls: "off" };
+      const badgeLabel =
+        p.configured && p.status === "unknown" ? "Configured" : badge.label;
+
+      const actions = p.configured
+        ? (p.active
+            ? '<span class="tag-active">Active</span>'
+            : '<button class="link" data-act="activate">Use</button>') +
+          '<button class="link" data-act="update">Update</button>' +
+          '<button class="link danger" data-act="remove">Remove</button>'
+        : '<button class="link primary" data-act="add">Add key</button>';
+
+      row.innerHTML =
+        '<div class="provider-info">' +
+        '<div class="provider-title">' +
+        '<span class="provider-label">' + escapeHtml(p.label) + "</span>" +
+        '<span class="provider-vendor">' + escapeHtml(p.vendor) + "</span>" +
+        "</div>" +
+        '<span class="badge ' + badge.cls + '">' + escapeHtml(badgeLabel) + "</span>" +
+        "</div>" +
+        '<div class="provider-actions">' + actions + "</div>";
+
+      row.querySelectorAll("[data-act]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const act = btn.getAttribute("data-act");
+          if (act === "add" || act === "update") {
+            vscode.postMessage({ type: "addProviderKey", id: p.id });
+          } else if (act === "activate") {
+            vscode.postMessage({ type: "setActiveProvider", id: p.id });
+          } else if (act === "remove") {
+            vscode.postMessage({ type: "removeProviderKey", id: p.id });
+          }
+        });
+      });
+
+      providersList.appendChild(row);
+    });
+  }
+
   // ---------- Submit ----------
   function submit() {
     const prompt = promptEl.value.trim();
     if (!prompt || busy) return;
+
+    if (!hasActiveProvider) {
+      providersPanel.classList.remove("hidden");
+      flashNotice("Add and select an AI provider to start building.");
+      return;
+    }
 
     emptyState.classList.add("hidden");
     addUserBubble(prompt);
@@ -62,7 +146,7 @@
     promptEl.value = "";
     autoGrow();
 
-    vscode.postMessage({ type: "submit", prompt, model: modelEl.value });
+    vscode.postMessage({ type: "submit", prompt });
   }
 
   // ---------- Rendering ----------
@@ -70,6 +154,15 @@
     const el = document.createElement("div");
     el.className = "bubble user";
     el.textContent = text;
+    thread.appendChild(el);
+    scrollToBottom();
+  }
+
+  function flashNotice(text) {
+    emptyState.classList.add("hidden");
+    const el = document.createElement("div");
+    el.className = "bubble ai notice";
+    el.textContent = "⚠️ " + text;
     thread.appendChild(el);
     scrollToBottom();
   }
@@ -86,8 +179,7 @@
       statusBubble = null;
       const el = document.createElement("div");
       el.className = "bubble ai";
-      el.innerHTML =
-        '<div class="status implementing">⚙️ ' + labels.implement + "</div>";
+      el.innerHTML = '<div class="status implementing">⚙️ ' + labels.implement + "</div>";
       thread.appendChild(el);
       busy = false;
       syncSendState();
@@ -105,7 +197,7 @@
     scrollToBottom();
   }
 
-  function renderPlan(steps) {
+  function renderPlan(steps, model) {
     if (statusBubble) statusBubble.remove();
     statusBubble = null;
 
@@ -114,7 +206,9 @@
 
     const items = steps.map((s) => "<li>" + escapeHtml(s) + "</li>").join("");
     el.innerHTML =
-      '<div class="label">📋 Proposed Plan</div>' +
+      '<div class="label">📋 Proposed Plan' +
+      (model ? ' <span class="by">via ' + escapeHtml(model) + "</span>" : "") +
+      "</div>" +
       '<ol class="plan-steps">' +
       items +
       "</ol>" +
@@ -182,14 +276,14 @@
   window.addEventListener("message", (event) => {
     const msg = event.data;
     switch (msg.type) {
-      case "init":
-        if (msg.model) modelEl.value = msg.model;
+      case "providers":
+        renderProviders(msg.statuses);
         break;
       case "status":
         setStatus(msg.phase);
         break;
       case "plan":
-        renderPlan(msg.steps);
+        renderPlan(msg.steps, msg.model);
         break;
       case "attachments":
         attachments = attachments.concat(msg.files);
@@ -198,6 +292,12 @@
       case "codeContext":
         attachments.push(msg.name + " (code)");
         renderChips();
+        break;
+      case "needsProvider":
+        busy = false;
+        syncSendState();
+        providersPanel.classList.remove("hidden");
+        flashNotice("Add and select an AI provider to start building.");
         break;
       case "reset":
         reset();
