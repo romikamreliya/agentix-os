@@ -1,0 +1,129 @@
+{
+  "name": "agentix-os-vscode",
+  "displayName": "Agentix OS",
+  "description": "Local-first AI development assistant. Ask AI what you want to build.",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "publisher": "agentix",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other", "Machine Learning"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentix",
+          "title": "Agentix OS",
+          "icon": "resources/icon.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "agentixPanel",
+          "title": "Agentix OS",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentix": [
+        {
+          "id": "agentix.home",
+          "name": "Agentix OS",
+          "type": "webview"
+        }
+      ],
+      "agentixPanel": [
+        {
+          "id": "agentix.panelHome",
+          "name": "Agentix OS",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agentix.openHome",
+        "title": "Agentix: Open Home",
+        "category": "Agentix"
+      },
+      {
+        "command": "agentix.newChat",
+        "title": "Agentix: New Chat",
+        "icon": "$(add)",
+        "category": "Agentix"
+      },
+      {
+        "command": "agentix.openPanel",
+        "title": "Agentix: Open in Side Panel",
+        "icon": "$(split-horizontal)",
+        "category": "Agentix"
+      },
+      {
+        "command": "agentix.revealRightSection",
+        "title": "Agentix: Reveal Right Section (Secondary Side Bar)",
+        "icon": "$(layout-sidebar-right)",
+        "category": "Agentix"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "agentix.openPanel",
+          "when": "view == agentix.home",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentix.newChat",
+          "when": "view == agentix.home",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentix.revealRightSection",
+          "when": "view == agentix.home",
+          "group": "navigation@3"
+        },
+        {
+          "command": "agentix.openPanel",
+          "when": "view == agentix.panelHome",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentix.newChat",
+          "when": "view == agentix.panelHome",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentix.revealRightSection",
+          "when": "view == agentix.panelHome",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Agentix OS",
+      "properties": {
+        "agentix.model": {
+          "type": "string",
+          "default": "Claude",
+          "enum": ["Claude", "GPT", "Gemini", "DeepSeek"],
+          "description": "Default AI model used for new requests."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,377 @@
+:root {
+  --bg: #0e0e12;
+  --bg-soft: #16161d;
+  --bg-elevated: #1c1c26;
+  --border: #2a2a36;
+  --text: #ececf1;
+  --text-muted: #9a9aab;
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-soft: rgba(139, 92, 246, 0.14);
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* ---------- Header ---------- */
+.hero-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 4px 12px;
+}
+
+.hero-heading h1 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.model-selector select {
+  appearance: none;
+  background: var(--bg-elevated)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a9aab' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>")
+    no-repeat right 8px center;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 26px 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.model-selector select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ---------- Main ---------- */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  padding: 40px 24px;
+  max-width: 420px;
+}
+
+.empty-icon {
+  font-size: 30px;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+
+.empty-state h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.empty-state.hidden {
+  display: none;
+}
+
+/* ---------- Thread ---------- */
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 4px;
+}
+
+.bubble {
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  animation: rise 0.18s ease-out;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  border-color: rgba(139, 92, 246, 0.3);
+  max-width: 85%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubble.ai {
+  background: var(--bg-soft);
+  width: 100%;
+}
+
+.bubble .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.plan-steps {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  counter-reset: step;
+}
+
+.plan-steps li {
+  position: relative;
+  padding: 7px 0 7px 30px;
+  border-top: 1px solid var(--border);
+  counter-increment: step;
+}
+
+.plan-steps li:first-child {
+  border-top: none;
+}
+
+.plan-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.plan-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn {
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.implementing {
+  color: var(--accent);
+}
+
+/* ---------- Composer ---------- */
+.composer {
+  padding: 10px 0 18px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.chip {
+  font-size: 11px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.prompt-box {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px 8px;
+  transition: border-color 0.15s ease;
+}
+
+.prompt-box:focus-within {
+  border-color: var(--accent);
+}
+
+.prompt-box textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  resize: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+  max-height: 200px;
+  outline: none;
+}
+
+.prompt-box textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  font-family: inherit;
+}
+
+.icon-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.send-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.send-arrow {
+  font-weight: 700;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

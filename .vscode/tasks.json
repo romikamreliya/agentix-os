@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "apps/vscode-extension",
+      "problemMatcher": ["$tsc"],
+      "label": "npm: build - apps/vscode-extension"
+    },
+    {
+      "type": "npm",
+      "script": "watch",
+      "path": "apps/vscode-extension",
+      "problemMatcher": ["$tsc-watch"],
+      "isBackground": true,
+      "label": "npm: watch - apps/vscode-extension"
+    }
+  ]
+}
