@@ -180,6 +180,37 @@ describe("Phase 3: Task Generation", () => {
     expect(s.executionControl).toBe("running");
     expect(s.currentTaskId).toBeDefined();
   });
+
+  it("changeTasks updates task titles, requirements, and sanitizes sequential IDs", () => {
+    const s = sessionWithTasks();
+    const modified: TaskNode[] = [
+      {
+        id: "task-1",
+        title: "Modified setup",
+        requirement: "Goal 1",
+        status: "pending",
+        fileChanges: [],
+        children: [
+          {
+            id: "task-temp-1",
+            title: "Modified sub-task",
+            requirement: "Goal 1",
+            status: "pending",
+            fileChanges: [],
+            children: []
+          }
+        ]
+      }
+    ];
+    const updated = engine.changeTasks(s, modified);
+    expect(updated.revision).toBe(s.revision + 1);
+    expect(updated.tasks).toHaveLength(1);
+    expect(updated.tasks[0].title).toBe("Modified setup");
+    expect(updated.tasks[0].id).toBe("task-1");
+    expect(updated.tasks[0].children).toHaveLength(1);
+    expect(updated.tasks[0].children[0].title).toBe("Modified sub-task");
+    expect(updated.tasks[0].children[0].id).toBe("task-1-1"); // ID sanitized
+  });
 });
 
 // ---------- Phase 4: Execution ----------

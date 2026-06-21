@@ -334,6 +334,172 @@
     return result;
   }
 
+  // ---------- Task Editor (Phase 3) ----------
+  function renderTaskEditor(container, tasks, goals) {
+    container.innerHTML = "";
+    const list = el('<ul class="task-editor-list"></ul>');
+    tasks.forEach((task) => {
+      list.appendChild(createTaskEditorNode(task, goals, false));
+    });
+    container.appendChild(list);
+    updateReorderButtons(list);
+  }
+
+  function createTaskEditorNode(task, goals, isSubTask) {
+    const li = el('<li class="task-editor-li"></li>');
+    li.setAttribute("data-id", task.id || "");
+    
+    const nodeDiv = el('<div class="task-editor-node"></div>');
+    if (isSubTask) {
+      nodeDiv.classList.add("sub-task");
+    }
+    
+    const row = el('<div class="task-editor-row"></div>');
+    
+    // Drag handle/icon
+    row.appendChild(el('<span class="task-editor-drag-icon">' + (isSubTask ? '↳' : '☰') + '</span>'));
+    
+    // Title Input
+    const input = el('<input type="text" class="task-editor-title-input" />');
+    input.value = task.title;
+    row.appendChild(input);
+    
+    // Traceability Dropdown (only for main tasks)
+    if (!isSubTask) {
+      const select = el('<select class="task-editor-select"></select>');
+      goals.forEach((goal) => {
+        const option = document.createElement("option");
+        option.value = goal;
+        option.textContent = goal.length > 30 ? goal.slice(0, 30) + "..." : goal;
+        if (task.requirement === goal) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+      row.appendChild(select);
+    }
+    
+    // Action Buttons
+    const actions = el('<div class="task-editor-actions"></div>');
+    
+    const upBtn = el('<button class="task-editor-btn reorder-up" title="Move Up">↑</button>');
+    upBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const prev = li.previousElementSibling;
+      if (prev) {
+        li.parentNode.insertBefore(li, prev);
+        updateReorderButtons(li.parentNode);
+      }
+    });
+    actions.appendChild(upBtn);
+    
+    const downBtn = el('<button class="task-editor-btn reorder-down" title="Move Down">↓</button>');
+    downBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const next = li.nextElementSibling;
+      if (next) {
+        li.parentNode.insertBefore(next, li);
+        updateReorderButtons(li.parentNode);
+      }
+    });
+    actions.appendChild(downBtn);
+    
+    if (!isSubTask) {
+      const addSubBtn = el('<button class="task-editor-btn add-sub" title="Add Sub-task">➕</button>');
+      addSubBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const subList = li.querySelector(".task-editor-sub-list");
+        const newSub = createTaskEditorNode({
+          id: "temp-" + Date.now(),
+          title: "New Sub-task",
+          requirement: task.requirement,
+          status: "pending",
+          fileChanges: [],
+          children: []
+        }, goals, true);
+        subList.appendChild(newSub);
+        updateReorderButtons(subList);
+      });
+      actions.appendChild(addSubBtn);
+    }
+    
+    const delBtn = el('<button class="task-editor-btn delete" title="Delete">🗑</button>');
+    delBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const parent = li.parentNode;
+      li.remove();
+      updateReorderButtons(parent);
+    });
+    actions.appendChild(delBtn);
+    
+    row.appendChild(actions);
+    nodeDiv.appendChild(row);
+    
+    // Sub-tasks container for main tasks
+    if (!isSubTask) {
+      const subList = el('<ul class="task-editor-sub-list"></ul>');
+      if (task.children && task.children.length) {
+        task.children.forEach((subTask) => {
+          subList.appendChild(createTaskEditorNode(subTask, goals, true));
+        });
+      }
+      nodeDiv.appendChild(subList);
+    }
+    
+    li.appendChild(nodeDiv);
+    return li;
+  }
+
+  function updateReorderButtons(listElement) {
+    if (!listElement) return;
+    const items = [...listElement.children];
+    items.forEach((item, index) => {
+      const up = item.querySelector(".reorder-up");
+      const down = item.querySelector(".reorder-down");
+      if (up) up.disabled = (index === 0);
+      if (down) down.disabled = (index === items.length - 1);
+      
+      // Also update nested sub-lists if this is a main task item
+      const subList = item.querySelector(".task-editor-sub-list");
+      if (subList) {
+        updateReorderButtons(subList);
+      }
+    });
+  }
+
+  function serializeTaskEditor(container) {
+    const list = container.querySelector(".task-editor-list");
+    if (!list) return [];
+    
+    return [...list.children].map((mainLi) => {
+      const titleInput = mainLi.querySelector(".task-editor-title-input");
+      const select = mainLi.querySelector(".task-editor-select");
+      const subList = mainLi.querySelector(".task-editor-sub-list");
+      const req = select ? select.value : "";
+      
+      const subTasks = subList ? [...subList.children].map((subLi) => {
+        const subTitleInput = subLi.querySelector(".task-editor-title-input");
+        return {
+          id: subLi.getAttribute("data-id") || "",
+          title: subTitleInput ? subTitleInput.value.trim() : "",
+          requirement: req,
+          status: "pending",
+          fileChanges: [],
+          children: []
+        };
+      }) : [];
+      
+      return {
+        id: mainLi.getAttribute("data-id") || "",
+        title: titleInput ? titleInput.value.trim() : "",
+        requirement: req,
+        status: "pending",
+        fileChanges: [],
+        children: subTasks
+      };
+    });
+  }
+
   // ---------- Diff viewer ----------
   function diffViewer(changes) {
     const container = el('<div class="bubble ai wf-card"><div class="label">📝 Proposed changes</div></div>');
@@ -535,11 +701,43 @@
       if (session.state === "generating-tasks") {
         thread.appendChild(spinnerCard("Generating tasks from the plan…"));
       } else if (session.state === "reviewing-tasks") {
-        const tasksCard = el('<div class="bubble ai wf-card"><div class="label">📋 Generated Tasks — Review before execution</div></div>');
-        tasksCard.appendChild(taskTree(session.tasks, true));
+        const tasksCard = el('<div class="bubble ai wf-card"><div class="label">📋 Generated Tasks — Review & Edit</div></div>');
+        
+        const editorContainer = el('<div class="task-editor-container"></div>');
+        tasksCard.appendChild(editorContainer);
+        const goals = (session.understanding.goals && session.understanding.goals.length)
+          ? session.understanding.goals
+          : ["General requirement"];
+        renderTaskEditor(editorContainer, session.tasks, goals);
+
         tasksCard.appendChild(
           actionsRow([
-            { label: "Approve & start execution", primary: true, onClick: () => vscode.postMessage({ type: "approveTasks" }) },
+            {
+              label: "Approve & start execution",
+              primary: true,
+              onClick: () => {
+                const tasks = serializeTaskEditor(editorContainer);
+                vscode.postMessage({ type: "approveTasks", tasks });
+              }
+            },
+            {
+              label: "➕ Add Main Task",
+              onClick: () => {
+                const list = editorContainer.querySelector(".task-editor-list");
+                if (list) {
+                  const mainTaskEl = createTaskEditorNode({
+                    id: "temp-" + Date.now(),
+                    title: "New Main Task",
+                    requirement: goals[0],
+                    status: "pending",
+                    fileChanges: [],
+                    children: []
+                  }, goals, false);
+                  list.appendChild(mainTaskEl);
+                  updateReorderButtons(list);
+                }
+              }
+            }
           ])
         );
         thread.appendChild(tasksCard);

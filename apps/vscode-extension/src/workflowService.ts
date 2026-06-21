@@ -339,6 +339,12 @@ export class WorkflowService {
   // Phase 3: Task approval
   // ===================================================================
 
+  /** Step 16: Users can add, edit, delete, or reorder tasks/sub-tasks. */
+  async changeTasks(tasks: import("./workflow/types").TaskNode[]): Promise<void> {
+    if (!this.session) return;
+    await this.commit(engine.changeTasks(this.session, tasks));
+  }
+
   /** Step 14–17: approve generated task structure → begin execution. */
   async approveTasks(): Promise<void> {
     if (!this.session) return;

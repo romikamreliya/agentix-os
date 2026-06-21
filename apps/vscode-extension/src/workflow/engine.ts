@@ -273,6 +273,27 @@ export function showTasks(session: WorkflowSession, tasks: TaskNode[]): Workflow
   };
 }
 
+/** User edits, adds, deletes or reorders tasks/sub-tasks. */
+export function changeTasks(session: WorkflowSession, tasks: TaskNode[]): WorkflowSession {
+  const sanitizedTasks = tasks.map((t, i) => {
+    const parentId = `task-${i + 1}`;
+    return {
+      ...t,
+      id: parentId,
+      children: t.children.map((sub, j) => ({
+        ...sub,
+        id: `${parentId}-${j + 1}`
+      }))
+    };
+  });
+
+  return {
+    ...session,
+    revision: session.revision + 1,
+    tasks: sanitizedTasks
+  };
+}
+
 /** Approve task structure → begin execution. */
 export function approveTasks(session: WorkflowSession): WorkflowSession {
   const firstTask = findNextPendingTask(session.tasks);

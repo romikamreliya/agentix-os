@@ -14,7 +14,7 @@ import {
   promptAndSaveKey
 } from "./webviewUtils";
 import type { ProviderId } from "./providers/types";
-import type { Plan, Understanding } from "./workflow/types";
+import type { Plan, TaskNode, Understanding } from "./workflow/types";
 
 const VIEW_ID = "agentix.home";
 const PANEL_VIEW_ID = "agentix.panelHome";
@@ -41,7 +41,8 @@ type InboundMessage =
   | { type: "changePlan"; plan: Plan }
   | { type: "approvePlan"; plan: Plan }
   // Workflow — Tasks
-  | { type: "approveTasks" }
+  | { type: "approveTasks"; tasks?: TaskNode[] }
+  | { type: "changeTasks"; tasks: TaskNode[] }
   // Workflow — Execution
   | { type: "approveChanges" }
   | { type: "rejectChanges" }
@@ -138,9 +139,18 @@ class AgentixController {
         return;
 
       // ---------- Workflow — Tasks ----------
-      case "approveTasks":
+      case "approveTasks": {
+        if (message.tasks) {
+          await this.workflow.changeTasks(message.tasks);
+        }
         await this.workflow.approveTasks();
         return;
+      }
+
+      case "changeTasks": {
+        await this.workflow.changeTasks(message.tasks);
+        return;
+      }
 
       // ---------- Workflow — Execution ----------
       case "approveChanges":
