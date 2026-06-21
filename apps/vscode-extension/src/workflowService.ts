@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import * as engine from "./workflow/engine";
 import type {
   FileChange,
@@ -125,14 +126,34 @@ export class WorkflowService {
         }, result.questions)
       );
     } catch (err) {
-      // On error, fall back to basic understanding
+      // On error, fall back to the same clean placeholder as the no-adapter path.
+      // Show the error via VS Code notification so it's visible but not embedded
+      // in the workflow data where it looks like a broken assumption.
       const msg = err instanceof Error ? err.message : String(err);
+      void vscode.window.showWarningMessage(`AI provider error: ${msg.slice(0, 200)}`);
       await this.commit(
         engine.startUnderstanding(prompt, {
           summary: `You want to build: ${prompt}`,
-          goals: [`Build: ${prompt.slice(0, 80)}`],
-          assumptions: [`AI error: ${msg.slice(0, 100)}`]
-        }, [])
+          goals: [
+            `Deliver the core of "${prompt.slice(0, 56)}"`,
+            "Keep the solution simple and maintainable",
+            "Validate the result with tests before shipping"
+          ],
+          assumptions: []
+        }, [
+          {
+            id: "u-platform",
+            text: "What is the primary target platform?",
+            options: ["Web app", "Mobile app", "Desktop app", "API / backend"],
+            allowOther: true
+          },
+          {
+            id: "u-priority",
+            text: "What matters most for this project?",
+            options: ["Speed of delivery", "Robustness & testing", "Scalability"],
+            allowOther: true
+          }
+        ])
       );
     }
   }
