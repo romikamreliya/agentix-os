@@ -1,127 +1,325 @@
-import { describe, it, expect } from "vitest";
-import {
-  startUnderstanding,
-  answerUnderstanding,
-  changeUnderstanding,
-  approveUnderstanding,
-  answerPlan,
-  changePlan,
-  approvePlan
-} from "./engine";
-import type { TaskNode } from "./types";
+import { describe, expect, it } from "vitest";
+import * as engine from "./engine";
+import type { Plan, TaskNode, Understanding, WorkflowSession } from "./types";
 
-function countLeaves(nodes: TaskNode[]): number {
-  return nodes.reduce(
-    (n, node) => n + (node.children.length ? countLeaves(node.children) : 1),
-    0
-  );
+// ---------- Helpers ----------
+
+function basePrompt(): string {
+  return "Create a todo app";
 }
 
-describe("workflow engine — understanding stage", () => {
-  it("generates understanding and option-based questions with an Other slot", () => {
-    const s = startUnderstanding("Build a todo app");
+function baseUnderstanding(): Understanding {
+  return {
+    summary: "Build a todo app",
+    goals: ["CRUD operations", "Persistent storage"],
+    assumptions: []
+  };
+}
+
+function baseQuestions() {
+  return [
+    { id: "q-1", text: "Platform?", options: ["Web", "Mobile"], allowOther: true }
+  ];
+}
+
+function basePlan(): Plan {
+  return {
+    steps: [
+      { id: "step-1", title: "Setup project", detail: "Init", subSteps: ["Install deps", "Create config"] },
+      { id: "step-2", title: "Build features", detail: "Implement", subSteps: ["Add CRUD", "Add storage"] }
+    ]
+  };
+}
+
+function sessionAtUnderstandingReview(): WorkflowSession {
+  const s = engine.startUnderstanding(basePrompt(), baseUnderstanding(), []);
+  return { ...s, state: "review" };
+}
+
+function sessionAtPlanReview(): WorkflowSession {
+  const s = sessionAtUnderstandingReview();
+  const approved = engine.approveUnderstanding(s, { summary: s.understanding.summary, goals: s.understanding.goals });
+  const withPlan = engine.showPlan(approved, basePlan(), []);
+  return { ...withPlan, state: "review" };
+}
+
+function sessionWithTasks(): WorkflowSession {
+  const s = sessionAtPlanReview();
+  const approved = engine.approvePlan(s, s.plan);
+  const tasks = engine.buildTasks(s.plan, s.understanding);
+  return engine.showTasks(approved, tasks);
+}
+
+function sessionInExecution(): WorkflowSession {
+  const s = sessionWithTasks();
+  return engine.approveTasks(s);
+}
+
+// ---------- Phase 1: Understanding ----------
+
+describe("Phase 1: Understanding", () => {
+  it("analyzingSession creates a session in analyzing state", () => {
+    const s = engine.analyzingSession(basePrompt());
+    expect(s.stage).toBe("understanding");
+    expect(s.state).toBe("analyzing");
+    expect(s.prompt).toBe(basePrompt());
+  });
+
+  it("startUnderstanding with questions moves to questions state", () => {
+    const s = engine.startUnderstanding(basePrompt(), baseUnderstanding(), baseQuestions());
     expect(s.stage).toBe("understanding");
     expect(s.state).toBe("questions");
-    expect(s.understanding.summary).toContain("Build a todo app");
-    expect(s.understandingQuestions.length).toBeGreaterThan(0);
-    for (const q of s.understandingQuestions) {
-      expect(q.options.length).toBeGreaterThan(0);
-      expect(q.allowOther).toBe(true);
-    }
+    expect(s.understanding.summary).toBe("Build a todo app");
+    expect(s.understandingQuestions).toHaveLength(1);
   });
 
-  it("reflects clarification answers in the understanding under review", () => {
-    let s = startUnderstanding("Build a todo app");
-    s = answerUnderstanding(s, { "u-platform": "Web app", "u-priority": "Robustness & testing" });
+  it("startUnderstanding with no questions moves to review", () => {
+    const s = engine.startUnderstanding(basePrompt(), baseUnderstanding(), []);
     expect(s.state).toBe("review");
-    expect(s.understanding.assumptions).toContain("Target platform: Web app");
-    expect(s.understanding.assumptions).toContain("Primary priority: Robustness & testing");
   });
 
-  it("loops back to questions on a user change and bumps the revision", () => {
-    let s = startUnderstanding("Build a todo app");
-    s = answerUnderstanding(s, { "u-platform": "Web app" });
-    const edited = { summary: "You want a CLI todo tool", goals: ["Fast capture", "Local storage"] };
-    s = changeUnderstanding(s, edited);
-    expect(s.state).toBe("questions");
-    expect(s.revision).toBe(1);
-    expect(s.understanding.summary).toBe("You want a CLI todo tool");
-    expect(s.understanding.goals).toEqual(["Fast capture", "Local storage"]);
-    expect(s.understandingApproved).toBe(false);
+  it("answerUnderstanding moves to review when no more questions", () => {
+    const s = engine.startUnderstanding(basePrompt(), baseUnderstanding(), baseQuestions());
+    const answered = engine.answerUnderstanding(s, { "q-1": "Web" });
+    expect(answered.state).toBe("review");
+    expect(answered.understandingAnswers["q-1"]).toBe("Web");
   });
 
-  it("approving moves to the planning stage with a plan and planning questions", () => {
-    let s = startUnderstanding("Build a todo app");
-    s = answerUnderstanding(s, { "u-platform": "Web app" });
-    s = approveUnderstanding(s, { summary: s.understanding.summary, goals: s.understanding.goals });
-    expect(s.understandingApproved).toBe(true);
-    expect(s.stage).toBe("planning");
-    expect(s.state).toBe("questions");
-    expect(s.plan.steps.length).toBeGreaterThan(0);
-    expect(s.planQuestions.every((q) => q.allowOther)).toBe(true);
+  it("answerUnderstanding with refined questions stays in questions", () => {
+    const s = engine.startUnderstanding(basePrompt(), baseUnderstanding(), baseQuestions());
+    const refined = {
+      understanding: baseUnderstanding(),
+      questions: [{ id: "q-2", text: "Framework?", options: ["React", "Vue"], allowOther: true }]
+    };
+    const answered = engine.answerUnderstanding(s, { "q-1": "Web" }, refined);
+    expect(answered.state).toBe("questions");
+    expect(answered.understandingQuestions).toHaveLength(1);
+    expect(answered.understandingQuestions[0].id).toBe("q-2");
+  });
+
+  it("changeUnderstanding increments revision", () => {
+    const s = sessionAtUnderstandingReview();
+    const changed = engine.changeUnderstanding(s, { summary: "Updated", goals: ["New goal"] }, []);
+    expect(changed.revision).toBe(s.revision + 1);
+    expect(changed.understanding.summary).toBe("Updated");
+    expect(changed.state).toBe("review"); // no questions
+  });
+
+  it("approveUnderstanding moves to planning/creating", () => {
+    const s = sessionAtUnderstandingReview();
+    const approved = engine.approveUnderstanding(s, {
+      summary: s.understanding.summary,
+      goals: s.understanding.goals
+    });
+    expect(approved.stage).toBe("planning");
+    expect(approved.state).toBe("creating");
+    expect(approved.understandingApproved).toBe(true);
   });
 });
 
-describe("workflow engine — planning stage", () => {
-  function approvedUnderstanding() {
-    let s = startUnderstanding("Build a todo app");
-    s = answerUnderstanding(s, { "u-platform": "Web app" });
-    return approveUnderstanding(s, { summary: s.understanding.summary, goals: s.understanding.goals });
-  }
+// ---------- Phase 2: Planning ----------
 
-  it("regenerates the plan from planning answers and shows it for review", () => {
-    let s = approvedUnderstanding();
-    s = answerPlan(s, { "p-stack": "Go", "p-split": "By milestone" });
-    expect(s.state).toBe("review");
-    const text = JSON.stringify(s.plan);
-    expect(text).toContain("Go");
-    expect(text.toLowerCase()).toContain("by milestone");
+describe("Phase 2: Planning", () => {
+  it("showPlan with questions moves to questions state", () => {
+    const s = sessionAtUnderstandingReview();
+    const approved = engine.approveUnderstanding(s, { summary: "Build todo", goals: ["CRUD"] });
+    const withPlan = engine.showPlan(approved, basePlan(), baseQuestions());
+    expect(withPlan.stage).toBe("planning");
+    expect(withPlan.state).toBe("questions");
+    expect(withPlan.plan.steps).toHaveLength(2);
   });
 
-  it("loops back on a plan change and bumps the revision", () => {
-    let s = approvedUnderstanding();
-    s = answerPlan(s, {});
-    const edited = {
-      steps: [{ id: "step-1", title: "Custom step", detail: "x", subSteps: ["a", "b"] }]
-    };
-    s = changePlan(s, edited);
-    expect(s.state).toBe("questions");
-    expect(s.revision).toBe(1);
-    expect(s.plan.steps[0].title).toBe("Custom step");
-    expect(s.planApproved).toBe(false);
+  it("showPlan with no questions moves to review", () => {
+    const s = sessionAtUnderstandingReview();
+    const approved = engine.approveUnderstanding(s, { summary: "Build todo", goals: ["CRUD"] });
+    const withPlan = engine.showPlan(approved, basePlan(), []);
+    expect(withPlan.state).toBe("review");
+  });
+
+  it("answerPlan moves to review", () => {
+    const s = sessionAtUnderstandingReview();
+    const approved = engine.approveUnderstanding(s, { summary: "Build todo", goals: ["CRUD"] });
+    const withPlan = engine.showPlan(approved, basePlan(), baseQuestions());
+    const answered = engine.answerPlan(withPlan, { "q-1": "TypeScript" });
+    expect(answered.state).toBe("review");
+  });
+
+  it("approvePlan moves to tasks/generating-tasks", () => {
+    const s = sessionAtPlanReview();
+    const approved = engine.approvePlan(s, s.plan);
+    expect(approved.stage).toBe("tasks");
+    expect(approved.state).toBe("generating-tasks");
+    expect(approved.planApproved).toBe(true);
   });
 });
 
-describe("workflow engine — task hierarchy", () => {
-  it("builds tasks/sub-tasks from the approved plan, reflecting user edits", () => {
-    let s = startUnderstanding("Build a todo app");
-    s = answerUnderstanding(s, { "u-platform": "Web app" });
-    s = approveUnderstanding(s, { summary: s.understanding.summary, goals: s.understanding.goals });
-    s = answerPlan(s, {});
+// ---------- Phase 3: Task Generation ----------
 
-    const editedPlan = {
-      steps: [
-        { id: "step-1", title: "Scaffold", detail: "", subSteps: ["init repo", "add config"] },
-        { id: "step-2", title: "Ship", detail: "", subSteps: ["release"] }
-      ]
-    };
-    s = approvePlan(s, editedPlan);
+describe("Phase 3: Task Generation", () => {
+  it("buildTasks creates nodes from plan steps", () => {
+    const tasks = engine.buildTasks(basePlan(), baseUnderstanding());
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0].title).toBe("Setup project");
+    expect(tasks[0].status).toBe("pending");
+    expect(tasks[0].children).toHaveLength(2);
+    expect(tasks[0].requirement).toBe("CRUD operations");
+  });
 
-    expect(s.stage).toBe("completed");
-    expect(s.state).toBe("done");
-    expect(s.planApproved).toBe(true);
+  it("showTasks puts session in reviewing-tasks state", () => {
+    const s = sessionWithTasks();
+    expect(s.stage).toBe("tasks");
+    expect(s.state).toBe("reviewing-tasks");
+    expect(s.tasks).toHaveLength(2);
+  });
 
-    // One task per edited step; sub-tasks per sub-step (edits reflected).
-    expect(s.tasks.map((t) => t.title)).toEqual(["Scaffold", "Ship"]);
-    expect(s.tasks[0].children.map((c) => c.title)).toEqual(["init repo", "add config"]);
-    expect(countLeaves(s.tasks)).toBe(3);
+  it("approveTasks moves to execution and sets first task", () => {
+    const s = sessionInExecution();
+    expect(s.stage).toBe("execution");
+    expect(s.state).toBe("executing");
+    expect(s.tasksApproved).toBe(true);
+    expect(s.executionControl).toBe("running");
+    expect(s.currentTaskId).toBeDefined();
+  });
+});
 
-    // Every node links to a requirement (traceability).
-    for (const task of s.tasks) {
-      expect(task.requirement).toBeTruthy();
-      for (const child of task.children) {
-        expect(child.requirement).toBe(task.requirement);
-      }
+// ---------- Phase 4: Execution ----------
+
+describe("Phase 4: Execution", () => {
+  it("startTask sets task to in-progress", () => {
+    const s = sessionInExecution();
+    const taskId = s.tasks[0].children[0].id; // first leaf task
+    const started = engine.startTask(s, taskId);
+    expect(started.currentTaskId).toBe(taskId);
+    const flat = engine.flattenTasks(started.tasks);
+    const task = flat.find((t) => t.id === taskId);
+    expect(task?.status).toBe("in-progress");
+  });
+
+  it("proposeChanges sets pending changes and awaiting-approval state", () => {
+    const s = sessionInExecution();
+    const taskId = s.tasks[0].children[0].id;
+    const started = engine.startTask(s, taskId);
+    const changes = [
+      { operation: "create" as const, filePath: "src/index.ts", content: "console.log('hello')" }
+    ];
+    const proposed = engine.proposeChanges(started, taskId, changes);
+    expect(proposed.state).toBe("awaiting-approval");
+    expect(proposed.pendingChanges).toHaveLength(1);
+  });
+
+  it("approveChanges clears pending and records changes", () => {
+    const s = sessionInExecution();
+    const taskId = s.tasks[0].children[0].id;
+    const started = engine.startTask(s, taskId);
+    const changes = [
+      { operation: "create" as const, filePath: "src/index.ts", content: "code" }
+    ];
+    const proposed = engine.proposeChanges(started, taskId, changes);
+    const approved = engine.approveChanges(proposed);
+    expect(approved.pendingChanges).toHaveLength(0);
+    expect(approved.allFileChanges).toHaveLength(1);
+    expect(approved.allFileChanges[0].approved).toBe(true);
+    expect(approved.allFileChanges[0].executed).toBe(false);
+  });
+
+  it("completeTask marks task as completed", () => {
+    const s = sessionInExecution();
+    const taskId = s.tasks[0].children[0].id;
+    const completed = engine.completeTask(s, taskId);
+    const flat = engine.flattenTasks(completed.tasks);
+    const task = flat.find((t) => t.id === taskId);
+    expect(task?.status).toBe("completed");
+  });
+
+  it("failTask marks task as failed with error", () => {
+    const s = sessionInExecution();
+    const taskId = s.tasks[0].children[0].id;
+    const failed = engine.failTask(s, taskId, "Network error");
+    const flat = engine.flattenTasks(failed.tasks);
+    const task = flat.find((t) => t.id === taskId);
+    expect(task?.status).toBe("failed");
+    expect(task?.error).toBe("Network error");
+  });
+
+  it("skipTask marks task as skipped", () => {
+    const s = sessionInExecution();
+    const taskId = s.tasks[0].children[0].id;
+    const skipped = engine.skipTask(s, taskId);
+    const flat = engine.flattenTasks(skipped.tasks);
+    const task = flat.find((t) => t.id === taskId);
+    expect(task?.status).toBe("skipped");
+  });
+
+  it("retryTask resets task to pending", () => {
+    const s = sessionInExecution();
+    const taskId = s.tasks[0].children[0].id;
+    const failed = engine.failTask(s, taskId, "err");
+    const retried = engine.retryTask(failed, taskId);
+    const flat = engine.flattenTasks(retried.tasks);
+    const task = flat.find((t) => t.id === taskId);
+    expect(task?.status).toBe("pending");
+    expect(retried.currentTaskId).toBe(taskId);
+  });
+
+  it("pauseExecution sets paused state", () => {
+    const s = sessionInExecution();
+    const paused = engine.pauseExecution(s);
+    expect(paused.executionControl).toBe("paused");
+    expect(paused.state).toBe("paused");
+  });
+
+  it("resumeExecution sets running state", () => {
+    const s = sessionInExecution();
+    const paused = engine.pauseExecution(s);
+    const resumed = engine.resumeExecution(paused);
+    expect(resumed.executionControl).toBe("running");
+    expect(resumed.state).toBe("executing");
+  });
+});
+
+// ---------- Phase 5: Completion ----------
+
+describe("Phase 5: Completion", () => {
+  it("completeWorkflow builds summary", () => {
+    const s = sessionInExecution();
+    // Complete all leaf tasks
+    let session = s;
+    const leaves = engine.flattenTasks(s.tasks).filter((t) => t.children.length === 0);
+    for (const leaf of leaves) {
+      session = engine.completeTask(session, leaf.id);
     }
+
+    const completed = engine.completeWorkflow(session, ["Add tests", "Deploy"]);
+    expect(completed.stage).toBe("completed");
+    expect(completed.state).toBe("summary");
+    expect(completed.summary).toBeDefined();
+    expect(completed.summary?.completedTasks.length).toBeGreaterThan(0);
+    expect(completed.summary?.recommendations).toEqual(["Add tests", "Deploy"]);
+  });
+
+  it("allTasksDone returns true when all tasks are terminal", () => {
+    const s = sessionInExecution();
+    let session = s;
+    const leaves = engine.flattenTasks(s.tasks).filter((t) => t.children.length === 0);
+    for (const leaf of leaves) {
+      session = engine.completeTask(session, leaf.id);
+    }
+    // Mark parents too
+    for (const parent of s.tasks) {
+      session = engine.completeTask(session, parent.id);
+    }
+    expect(engine.allTasksDone(session.tasks)).toBe(true);
+  });
+
+  it("allTasksDone returns false with pending tasks", () => {
+    const s = sessionInExecution();
+    expect(engine.allTasksDone(s.tasks)).toBe(false);
+  });
+
+  it("findNextPendingTask finds the first pending task", () => {
+    const s = sessionInExecution();
+    const next = engine.findNextPendingTask(s.tasks);
+    expect(next).toBeDefined();
+    expect(next?.status).toBe("pending");
   });
 });

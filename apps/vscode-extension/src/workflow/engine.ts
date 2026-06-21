@@ -1,134 +1,245 @@
 import type {
+  CompletionSummary,
+  FileChange,
+  FileChangeRecord,
   Plan,
   Question,
   Stage,
   StageState,
   TaskNode,
+  TaskStatus,
   Understanding,
   WorkflowSession
 } from "./types";
 
 /**
  * Pure workflow engine. Every function returns a new session and performs no
- * I/O — orchestration (delays, persistence, UI) lives in WorkflowService.
+ * I/O — orchestration (delays, persistence, UI, AI calls) lives in WorkflowService.
  *
- * The "AI" content is generated deterministically here so the full approval
- * flow can be implemented and tested end-to-end without a live model. Swap the
- * generator functions for real provider calls when the runtime lands.
+ * Supports the full 5-phase workflow:
+ *   1. Understanding  (analyzing → questions → review → approved)
+ *   2. Planning       (creating → questions → review → approved)
+ *   3. Tasks          (generating-tasks → reviewing-tasks → approved)
+ *   4. Execution      (executing → awaiting-approval → per-task loop)
+ *   5. Completion     (summary)
  */
-
-function shorten(text: string, max = 56): string {
-  const t = text.trim();
-  return t.length > max ? t.slice(0, max - 1) + "…" : t;
-}
 
 function newId(): string {
   return "wf-" + Math.random().toString(36).slice(2, 10);
 }
 
-// ---------- Generators (placeholder "AI") ----------
+// ---------- Default empty structures ----------
 
-function generateUnderstanding(prompt: string): Understanding {
-  const clean = prompt.trim();
+const EMPTY_UNDERSTANDING: Understanding = { summary: "", goals: [], assumptions: [] };
+
+function emptySession(prompt: string, base?: Partial<WorkflowSession>): WorkflowSession {
   return {
-    summary: `You want to build: ${clean}`,
-    goals: [
-      `Deliver the core of "${shorten(clean)}"`,
-      "Keep the solution simple and maintainable",
-      "Validate the result with tests before shipping"
-    ],
-    assumptions: []
+    id: base?.id ?? newId(),
+    prompt,
+    stage: "understanding",
+    state: "analyzing",
+    revision: 0,
+    understanding: EMPTY_UNDERSTANDING,
+    understandingApproved: false,
+    understandingQuestions: [],
+    understandingAnswers: {},
+    plan: { steps: [] },
+    planApproved: false,
+    planQuestions: [],
+    planAnswers: {},
+    tasks: [],
+    tasksApproved: false,
+    executionControl: "stopped",
+    currentTaskId: undefined,
+    pendingChanges: [],
+    allFileChanges: [],
+    summary: undefined,
+    ...base
   };
 }
 
-function understandingQuestions(): Question[] {
-  return [
-    {
-      id: "u-platform",
-      text: "What is the primary target platform?",
-      options: ["Web app", "Mobile app", "Desktop app", "API / backend"],
-      allowOther: true
-    },
-    {
-      id: "u-priority",
-      text: "What matters most for this project?",
-      options: ["Speed of delivery", "Robustness & testing", "Scalability"],
-      allowOther: true
-    }
-  ];
+// ===================================================================
+// Phase 1: Understanding
+// ===================================================================
+
+/** Transient session shown while the AI "analyzes" the prompt. */
+export function analyzingSession(prompt: string, base?: WorkflowSession): WorkflowSession {
+  if (base) {
+    return {
+      ...base,
+      prompt,
+      stage: "understanding",
+      state: "analyzing" as StageState
+    };
+  }
+  return emptySession(prompt);
 }
 
-function applyUnderstandingAnswers(
+/** AI analysis complete — show understanding + clarification questions. */
+export function startUnderstanding(
+  prompt: string,
   understanding: Understanding,
-  answers: Record<string, string>
-): Understanding {
-  const assumptions: string[] = [];
-  if (answers["u-platform"]) {
-    assumptions.push(`Target platform: ${answers["u-platform"]}`);
+  questions: Question[],
+  base?: WorkflowSession
+): WorkflowSession {
+  return {
+    ...emptySession(prompt, base),
+    understanding,
+    understandingQuestions: questions,
+    stage: "understanding",
+    state: questions.length > 0 ? "questions" : "review"
+  };
+}
+
+/** User answers clarification questions → show understanding for review. */
+export function answerUnderstanding(
+  session: WorkflowSession,
+  answers: Record<string, string>,
+  refined?: { understanding: Understanding; questions: Question[] }
+): WorkflowSession {
+  const merged = { ...session.understandingAnswers, ...answers };
+
+  if (refined && refined.questions.length > 0) {
+    // AI has more questions
+    return {
+      ...session,
+      understandingAnswers: merged,
+      understanding: refined.understanding,
+      understandingQuestions: refined.questions,
+      state: "questions"
+    };
   }
-  if (answers["u-priority"]) {
-    assumptions.push(`Primary priority: ${answers["u-priority"]}`);
+
+  // No more questions → go to review
+  const understanding = refined?.understanding ?? session.understanding;
+  // Build assumptions from answers
+  const assumptions = Object.entries(merged).map(([, v]) => v);
+  return {
+    ...session,
+    understandingAnswers: merged,
+    understanding: { ...understanding, assumptions },
+    state: "review"
+  };
+}
+
+/** User edits understanding and resubmits → re-analyze. */
+export function changeUnderstanding(
+  session: WorkflowSession,
+  edited: Pick<Understanding, "summary" | "goals">,
+  questions: Question[]
+): WorkflowSession {
+  return {
+    ...session,
+    revision: session.revision + 1,
+    understanding: { summary: edited.summary, goals: edited.goals, assumptions: [] },
+    understandingQuestions: questions,
+    understandingAnswers: {},
+    state: questions.length > 0 ? "questions" : "review"
+  };
+}
+
+/** Approve understanding → move to planning stage. */
+export function approveUnderstanding(
+  session: WorkflowSession,
+  edited: Pick<Understanding, "summary" | "goals">
+): WorkflowSession {
+  const understanding: Understanding = {
+    summary: edited.summary,
+    goals: edited.goals,
+    assumptions: session.understanding.assumptions
+  };
+  return {
+    ...session,
+    understanding,
+    understandingApproved: true,
+    stage: "planning",
+    state: "creating"
+  };
+}
+
+// ===================================================================
+// Phase 2: Planning
+// ===================================================================
+
+/** Transient session shown while the AI creates the plan. */
+export function creatingSession(session: WorkflowSession): WorkflowSession {
+  return { ...session, stage: "planning", state: "creating" };
+}
+
+/** AI plan generated — show plan + planning questions. */
+export function showPlan(
+  session: WorkflowSession,
+  plan: Plan,
+  questions: Question[]
+): WorkflowSession {
+  return {
+    ...session,
+    plan,
+    planQuestions: questions,
+    stage: "planning",
+    state: questions.length > 0 ? "questions" : "review"
+  };
+}
+
+/** User answers planning questions → regenerate plan → review. */
+export function answerPlan(
+  session: WorkflowSession,
+  answers: Record<string, string>,
+  refined?: { plan: Plan; questions: Question[] }
+): WorkflowSession {
+  const merged = { ...session.planAnswers, ...answers };
+
+  if (refined && refined.questions.length > 0) {
+    return {
+      ...session,
+      planAnswers: merged,
+      plan: refined.plan,
+      planQuestions: refined.questions,
+      state: "questions"
+    };
   }
-  return { ...understanding, assumptions };
+
+  return {
+    ...session,
+    planAnswers: merged,
+    plan: refined?.plan ?? session.plan,
+    state: "review"
+  };
 }
 
-function planQuestions(): Question[] {
-  return [
-    {
-      id: "p-stack",
-      text: "Preferred technology stack?",
-      options: ["TypeScript / Node", "Python", "Go", "No preference"],
-      allowOther: true
-    },
-    {
-      id: "p-split",
-      text: "How should the work be organized?",
-      options: ["By feature", "By layer", "By milestone"],
-      allowOther: true
-    }
-  ];
+/** User edits the plan and resubmits → re-plan questions. */
+export function changePlan(
+  session: WorkflowSession,
+  edited: Plan,
+  questions: Question[]
+): WorkflowSession {
+  return {
+    ...session,
+    revision: session.revision + 1,
+    plan: edited,
+    planQuestions: questions,
+    planAnswers: {},
+    state: questions.length > 0 ? "questions" : "review"
+  };
 }
 
-function generatePlan(understanding: Understanding, answers: Record<string, string>): Plan {
-  const stack = answers["p-stack"] || "the chosen stack";
-  const split = answers["p-split"] || "By feature";
-  const steps = [
-    {
-      id: "step-1",
-      title: "Set up project & tooling",
-      detail: `Initialize the project using ${stack}.`,
-      subSteps: ["Initialize the repository", `Configure ${stack} toolchain`, "Add scripts and CI"]
-    },
-    {
-      id: "step-2",
-      title: "Model the domain",
-      detail: `Outline modules and data (${split.toLowerCase()}).`,
-      subSteps: ["Define core data structures", `Outline modules (${split.toLowerCase()})`]
-    },
-    {
-      id: "step-3",
-      title: "Implement core features",
-      detail: "Build the features that satisfy the goals.",
-      subSteps: understanding.goals.map((g) => `Implement: ${g}`)
-    },
-    {
-      id: "step-4",
-      title: "Add tests & validation",
-      detail: "Cover the core behavior with tests.",
-      subSteps: ["Write unit tests", "Verify each milestone"]
-    },
-    {
-      id: "step-5",
-      title: "Review & ship",
-      detail: "Polish, review, and prepare for release.",
-      subSteps: ["Code review", "Prepare release notes"]
-    }
-  ];
-  return { steps };
+/** Approve plan → move to task generation. */
+export function approvePlan(session: WorkflowSession, edited: Plan): WorkflowSession {
+  return {
+    ...session,
+    plan: edited,
+    planApproved: true,
+    stage: "tasks",
+    state: "generating-tasks"
+  };
 }
 
-/** Builds the final task hierarchy, linking every node to a requirement (goal). */
-function buildTasks(plan: Plan, understanding: Understanding): TaskNode[] {
+// ===================================================================
+// Phase 3: Task Generation
+// ===================================================================
+
+/** Build the task hierarchy from the approved plan. */
+export function buildTasks(plan: Plan, understanding: Understanding): TaskNode[] {
   const goals = understanding.goals.length ? understanding.goals : ["General requirement"];
   return plan.steps.map((step, i) => {
     const requirement = goals[i % goals.length];
@@ -136,157 +247,305 @@ function buildTasks(plan: Plan, understanding: Understanding): TaskNode[] {
       id: `task-${i + 1}`,
       title: step.title,
       requirement,
+      status: "pending" as TaskStatus,
+      error: undefined,
+      fileChanges: [],
       children: step.subSteps.map((sub, j) => ({
         id: `task-${i + 1}-${j + 1}`,
         title: sub,
         requirement,
+        status: "pending" as TaskStatus,
+        error: undefined,
+        fileChanges: [],
         children: []
       }))
     };
   });
 }
 
-// ---------- Transitions ----------
-
-const EMPTY_UNDERSTANDING: Understanding = { summary: "", goals: [], assumptions: [] };
-
-/** Transient session shown while the AI "analyzes" (stage = understanding). */
-export function analyzingSession(prompt: string, base?: WorkflowSession): WorkflowSession {
-  const id = base?.id ?? newId();
+/** Task generation complete — show for review. */
+export function showTasks(session: WorkflowSession, tasks: TaskNode[]): WorkflowSession {
   return {
-    ...(base ?? {
-      id,
-      prompt,
-      stage: "understanding" as Stage,
-      revision: 0,
-      understanding: EMPTY_UNDERSTANDING,
-      understandingApproved: false,
-      understandingQuestions: [],
-      understandingAnswers: {},
-      plan: { steps: [] },
-      planApproved: false,
-      planQuestions: [],
-      planAnswers: {},
-      tasks: []
-    }),
-    prompt,
-    stage: "understanding",
-    state: "analyzing" as StageState
+    ...session,
+    tasks,
+    stage: "tasks",
+    state: "reviewing-tasks"
   };
 }
 
-/** Step 2–3: AI understands the prompt and asks clarification questions. */
-export function startUnderstanding(prompt: string, base?: WorkflowSession): WorkflowSession {
-  const understanding = generateUnderstanding(prompt);
+/** Approve task structure → begin execution. */
+export function approveTasks(session: WorkflowSession): WorkflowSession {
+  const firstTask = findNextPendingTask(session.tasks);
   return {
-    id: base?.id ?? newId(),
-    prompt,
-    stage: "understanding",
-    state: "questions",
-    revision: base?.revision ?? 0,
-    understanding,
-    understandingApproved: false,
-    understandingQuestions: understandingQuestions(),
-    understandingAnswers: {},
-    plan: { steps: [] },
-    planApproved: false,
-    planQuestions: [],
-    planAnswers: {},
-    tasks: []
+    ...session,
+    tasksApproved: true,
+    stage: "execution",
+    state: "executing",
+    executionControl: "running",
+    currentTaskId: firstTask?.id
   };
 }
 
-/** User answers clarification questions → show understanding for review. */
-export function answerUnderstanding(
+// ===================================================================
+// Phase 4: Execution
+// ===================================================================
+
+/** Set a task's status (used for all status transitions). */
+export function setTaskStatus(
+  tasks: TaskNode[],
+  taskId: string,
+  status: TaskStatus,
+  error?: string
+): TaskNode[] {
+  return tasks.map((t) => {
+    if (t.id === taskId) {
+      return { ...t, status, error: error ?? t.error };
+    }
+    if (t.children.length) {
+      return { ...t, children: setTaskStatus(t.children, taskId, status, error) };
+    }
+    return t;
+  });
+}
+
+/** Start executing a task (set to in-progress). */
+export function startTask(session: WorkflowSession, taskId: string): WorkflowSession {
+  return {
+    ...session,
+    tasks: setTaskStatus(session.tasks, taskId, "in-progress"),
+    currentTaskId: taskId,
+    state: "executing"
+  };
+}
+
+/** AI has proposed changes for a task — show for approval. */
+export function proposeChanges(
   session: WorkflowSession,
-  answers: Record<string, string>
+  taskId: string,
+  changes: FileChange[]
 ): WorkflowSession {
   return {
     ...session,
-    understandingAnswers: { ...session.understandingAnswers, ...answers },
-    understanding: applyUnderstandingAnswers(session.understanding, {
-      ...session.understandingAnswers,
-      ...answers
-    }),
-    state: "review"
+    currentTaskId: taskId,
+    pendingChanges: changes,
+    state: "awaiting-approval"
   };
 }
 
-/** Step 5: user edits the understanding and resubmits → re-analyze. */
-export function changeUnderstanding(
+/** User approves the proposed changes. */
+export function approveChanges(session: WorkflowSession): WorkflowSession {
+  const records: FileChangeRecord[] = session.pendingChanges.map((c) => ({
+    ...c,
+    taskId: session.currentTaskId ?? "",
+    approved: true,
+    executed: false,
+    timestamp: Date.now()
+  }));
+  return {
+    ...session,
+    pendingChanges: [],
+    allFileChanges: [...session.allFileChanges, ...records],
+    state: "executing"
+  };
+}
+
+/** Mark a change as executed after the file system operation succeeds. */
+export function markChangeExecuted(
   session: WorkflowSession,
-  edited: Pick<Understanding, "summary" | "goals">
+  changeIndex: number
 ): WorkflowSession {
+  const updated = [...session.allFileChanges];
+  if (updated[changeIndex]) {
+    updated[changeIndex] = { ...updated[changeIndex], executed: true };
+  }
+  return { ...session, allFileChanges: updated };
+}
+
+/** Mark a task as completed and attach its file changes. */
+export function completeTask(session: WorkflowSession, taskId: string): WorkflowSession {
+  const taskChanges = session.allFileChanges.filter((c) => c.taskId === taskId);
+  const tasks = updateTaskNode(session.tasks, taskId, (t) => ({
+    ...t,
+    status: "completed" as TaskStatus,
+    fileChanges: taskChanges
+  }));
+  const next = findNextPendingTask(tasks);
   return {
     ...session,
-    revision: session.revision + 1,
-    understanding: { summary: edited.summary, goals: edited.goals, assumptions: [] },
-    understandingQuestions: understandingQuestions(),
-    understandingAnswers: {},
-    state: "questions"
+    tasks,
+    currentTaskId: next?.id,
+    pendingChanges: [],
+    state: next ? "executing" : "executing" // WorkflowService will call completeWorkflow
   };
 }
 
-/** Step 6 → 7: approve understanding, generate the plan + planning questions. */
-export function approveUnderstanding(
+/** Mark a task as failed. */
+export function failTask(
   session: WorkflowSession,
-  edited: Pick<Understanding, "summary" | "goals">
+  taskId: string,
+  error: string
 ): WorkflowSession {
-  const understanding = applyUnderstandingAnswers(
-    { summary: edited.summary, goals: edited.goals, assumptions: [] },
-    session.understandingAnswers
-  );
+  const tasks = setTaskStatus(session.tasks, taskId, "failed", error);
+  const next = findNextPendingTask(tasks);
   return {
     ...session,
-    understanding,
-    understandingApproved: true,
-    stage: "planning",
-    state: "questions",
-    plan: generatePlan(understanding, {}),
-    planQuestions: planQuestions(),
-    planAnswers: {}
+    tasks,
+    currentTaskId: next?.id,
+    pendingChanges: []
   };
 }
 
-/** Transient session shown while the AI "creates" the plan (stage = planning). */
-export function creatingSession(session: WorkflowSession): WorkflowSession {
-  return { ...session, stage: "planning", state: "creating" };
+/** Skip a task. */
+export function skipTask(session: WorkflowSession, taskId: string): WorkflowSession {
+  const tasks = setTaskStatus(session.tasks, taskId, "skipped");
+  const next = findNextPendingTask(tasks);
+  return {
+    ...session,
+    tasks,
+    currentTaskId: next?.id,
+    pendingChanges: []
+  };
 }
 
-/** User answers planning questions → regenerate plan → review. */
-export function answerPlan(
+/** Reset a failed/skipped task back to pending for retry. */
+export function retryTask(session: WorkflowSession, taskId: string): WorkflowSession {
+  const tasks = setTaskStatus(session.tasks, taskId, "pending");
+  return {
+    ...session,
+    tasks,
+    currentTaskId: taskId
+  };
+}
+
+/** Pause execution. */
+export function pauseExecution(session: WorkflowSession): WorkflowSession {
+  return {
+    ...session,
+    executionControl: "paused",
+    state: "paused"
+  };
+}
+
+/** Resume execution from pause. */
+export function resumeExecution(session: WorkflowSession): WorkflowSession {
+  return {
+    ...session,
+    executionControl: "running",
+    state: "executing"
+  };
+}
+
+// ===================================================================
+// Phase 5: Completion
+// ===================================================================
+
+/** Build the completion summary and finalize. */
+export function completeWorkflow(
   session: WorkflowSession,
-  answers: Record<string, string>
+  recommendations: string[]
 ): WorkflowSession {
-  const merged = { ...session.planAnswers, ...answers };
+  const summary = buildSummary(session, recommendations);
   return {
     ...session,
-    planAnswers: merged,
-    plan: generatePlan(session.understanding, merged),
-    state: "review"
-  };
-}
-
-/** Step 10: user edits the plan and resubmits → re-plan questions. */
-export function changePlan(session: WorkflowSession, edited: Plan): WorkflowSession {
-  return {
-    ...session,
-    revision: session.revision + 1,
-    plan: edited,
-    planQuestions: planQuestions(),
-    planAnswers: {},
-    state: "questions"
-  };
-}
-
-/** Step 11 → 12-15: approve plan, build the task hierarchy from it. */
-export function approvePlan(session: WorkflowSession, edited: Plan): WorkflowSession {
-  return {
-    ...session,
-    plan: edited,
-    planApproved: true,
     stage: "completed",
-    state: "done",
-    tasks: buildTasks(edited, session.understanding)
+    state: "summary",
+    executionControl: "stopped",
+    currentTaskId: undefined,
+    pendingChanges: [],
+    summary
   };
+}
+
+function buildSummary(
+  session: WorkflowSession,
+  recommendations: string[]
+): CompletionSummary {
+  const all = flattenTasks(session.tasks);
+  const completed = all.filter((t) => t.status === "completed").map((t) => t.title);
+  const failed = all.filter((t) => t.status === "failed").map((t) => t.title);
+  const skipped = all.filter((t) => t.status === "skipped").map((t) => t.title);
+
+  const created = new Set<string>();
+  const modified = new Set<string>();
+  const deleted = new Set<string>();
+
+  for (const change of session.allFileChanges) {
+    if (!change.executed) continue;
+    switch (change.operation) {
+      case "create":
+        created.add(change.filePath);
+        break;
+      case "modify":
+        modified.add(change.filePath);
+        break;
+      case "delete":
+        deleted.add(change.filePath);
+        break;
+      case "rename":
+      case "move":
+        deleted.add(change.filePath);
+        if (change.newPath) created.add(change.newPath);
+        break;
+    }
+  }
+
+  return {
+    completedTasks: completed,
+    failedTasks: failed,
+    skippedTasks: skipped,
+    createdFiles: [...created],
+    modifiedFiles: [...modified],
+    deletedFiles: [...deleted],
+    recommendations
+  };
+}
+
+// ===================================================================
+// Helpers
+// ===================================================================
+
+/** Find the next task with status "pending" (depth-first). */
+export function findNextPendingTask(tasks: TaskNode[]): TaskNode | undefined {
+  for (const task of tasks) {
+    if (task.status === "pending") return task;
+    if (task.children.length) {
+      const child = findNextPendingTask(task.children);
+      if (child) return child;
+    }
+  }
+  return undefined;
+}
+
+/** Check if all tasks are terminal (completed, failed, or skipped). */
+export function allTasksDone(tasks: TaskNode[]): boolean {
+  return flattenTasks(tasks).every(
+    (t) => t.status === "completed" || t.status === "failed" || t.status === "skipped"
+  );
+}
+
+/** Flatten the task tree into a single list. */
+export function flattenTasks(tasks: TaskNode[]): TaskNode[] {
+  const result: TaskNode[] = [];
+  for (const task of tasks) {
+    result.push(task);
+    if (task.children.length) {
+      result.push(...flattenTasks(task.children));
+    }
+  }
+  return result;
+}
+
+/** Update a single task node by id (deep). */
+function updateTaskNode(
+  tasks: TaskNode[],
+  taskId: string,
+  updater: (t: TaskNode) => TaskNode
+): TaskNode[] {
+  return tasks.map((t) => {
+    if (t.id === taskId) return updater(t);
+    if (t.children.length) {
+      return { ...t, children: updateTaskNode(t.children, taskId, updater) };
+    }
+    return t;
+  });
 }

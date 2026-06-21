@@ -6,6 +6,7 @@ import { SettingsService } from "./settings";
 import { openSettings } from "./settingsView";
 import { PROVIDERS } from "./providers/registry";
 import { WorkflowService } from "./workflowService";
+import { FileSystemService } from "./fileSystemService";
 import {
   buildCsp,
   confirmRemoveKey,
@@ -30,14 +31,24 @@ type InboundMessage =
   | { type: "addProviderKey"; id: ProviderId }
   | { type: "removeProviderKey"; id: ProviderId }
   | { type: "revalidateProvider"; id: ProviderId }
-  // Workflow
+  // Workflow — Understanding
   | { type: "start"; prompt: string }
   | { type: "answerUnderstanding"; answers: Record<string, string> }
   | { type: "changeUnderstanding"; understanding: UnderstandingEdit }
   | { type: "approveUnderstanding"; understanding: UnderstandingEdit }
+  // Workflow — Planning
   | { type: "answerPlan"; answers: Record<string, string> }
   | { type: "changePlan"; plan: Plan }
-  | { type: "approvePlan"; plan: Plan };
+  | { type: "approvePlan"; plan: Plan }
+  // Workflow — Tasks
+  | { type: "approveTasks" }
+  // Workflow — Execution
+  | { type: "approveChanges" }
+  | { type: "rejectChanges" }
+  | { type: "pauseExecution" }
+  | { type: "resumeExecution" }
+  | { type: "skipTask" }
+  | { type: "retryTask"; taskId: string };
 
 /**
  * Drives a single Agentix OS webview (the hero prompt home screen).
@@ -90,7 +101,7 @@ class AgentixController {
         await this.handleAction(message.action);
         return;
 
-      // ---------- Workflow ----------
+      // ---------- Workflow — Understanding ----------
       case "start": {
         const active = await this.providers.getActiveConfigured();
         if (!active) {
@@ -113,6 +124,7 @@ class AgentixController {
         await this.workflow.approveUnderstanding(message.understanding);
         return;
 
+      // ---------- Workflow — Planning ----------
       case "answerPlan":
         await this.workflow.answerPlan(message.answers);
         return;
@@ -125,6 +137,37 @@ class AgentixController {
         await this.workflow.approvePlan(message.plan);
         return;
 
+      // ---------- Workflow — Tasks ----------
+      case "approveTasks":
+        await this.workflow.approveTasks();
+        return;
+
+      // ---------- Workflow — Execution ----------
+      case "approveChanges":
+        await this.workflow.approveChanges();
+        return;
+
+      case "rejectChanges":
+        await this.workflow.rejectChanges();
+        return;
+
+      case "pauseExecution":
+        await this.workflow.pauseExecution();
+        return;
+
+      case "resumeExecution":
+        await this.workflow.resumeExecution();
+        return;
+
+      case "skipTask":
+        await this.workflow.skipCurrentTask();
+        return;
+
+      case "retryTask":
+        await this.workflow.retryTask(message.taskId);
+        return;
+
+      // ---------- Provider management ----------
       case "setActiveProvider": {
         const result = await this.providers.setActive(message.id);
         if (!result.ok) {
@@ -355,7 +398,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const keyStore = new KeyStore(context.secrets);
   const providers = new ProviderManager(keyStore, localStore, PROVIDERS);
-  const workflow = new WorkflowService(localStore, settings);
+  const fileSystem = new FileSystemService();
+  const workflow = new WorkflowService(localStore, settings, providers, keyStore, fileSystem);
 
   const sidebarProvider = new AgentixHomeProvider(context.extensionUri, providers, workflow);
   const panelProvider = new AgentixHomeProvider(context.extensionUri, providers, workflow);

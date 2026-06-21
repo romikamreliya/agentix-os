@@ -8,6 +8,14 @@
   --accent: #8b5cf6;
   --accent-hover: #7c3aed;
   --accent-soft: rgba(139, 92, 246, 0.14);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.14);
   --radius: 14px;
 }
 
@@ -393,6 +401,7 @@ body {
   display: flex;
   gap: 8px;
   margin-top: 14px;
+  flex-wrap: wrap;
 }
 
 .plan-note {
@@ -535,7 +544,7 @@ body {
   font-size: 13px;
 }
 
-/* Task tree */
+/* ---------- Task tree ---------- */
 .task-tree {
   list-style: none;
   margin: 4px 0 0;
@@ -558,6 +567,9 @@ body {
 .task-title {
   font-size: 13px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .task-req {
@@ -565,6 +577,238 @@ body {
   color: var(--text-muted);
 }
 
+/* ---------- Task status badges ---------- */
+.task-status {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.task-status.pending {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.task-status.in-progress {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.task-status.completed {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.task-status.failed {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.task-status.skipped {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.task-error {
+  font-size: 11px;
+  color: var(--danger);
+  margin-top: 2px;
+}
+
+/* ---------- Progress bar ---------- */
+.progress-container {
+  margin: 10px 0;
+}
+
+.progress-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  transition: width 0.4s ease;
+}
+
+/* ---------- Execution control bar ---------- */
+.exec-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.exec-controls .btn {
+  font-size: 11px;
+  padding: 5px 12px;
+}
+
+/* ---------- Diff viewer ---------- */
+.diff-viewer {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.diff-header {
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diff-op {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.diff-op.create {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.diff-op.modify {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.diff-op.delete {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.diff-op.rename,
+.diff-op.move {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.diff-path {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.diff-body {
+  padding: 0;
+  margin: 0;
+  background: var(--bg);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.diff-body pre {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diff-line-add {
+  background: rgba(52, 211, 153, 0.1);
+  color: var(--success);
+}
+
+.diff-line-del {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--danger);
+}
+
+.diff-line-ctx {
+  color: var(--text-muted);
+}
+
+.diff-line-hdr {
+  color: var(--info);
+  font-weight: 600;
+}
+
+/* ---------- Completion summary ---------- */
+.summary-section {
+  margin: 10px 0;
+}
+
+.summary-section h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary-count {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+
+.summary-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+}
+
+.summary-list li {
+  margin: 3px 0;
+  color: var(--text-muted);
+}
+
+.summary-list.success li {
+  color: var(--success);
+}
+
+.summary-list.danger li {
+  color: var(--danger);
+}
+
+.summary-list.warning li {
+  color: var(--warning);
+}
+
+.summary-list.info li {
+  color: var(--info);
+}
+
+.summary-file {
+  font-family: monospace;
+  font-size: 11px;
+}
+
+/* ---------- Buttons ---------- */
 .btn {
   border-radius: 10px;
   padding: 7px 14px;
@@ -573,6 +817,12 @@ body {
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   color: var(--text);
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.btn:hover {
+  border-color: var(--accent);
 }
 
 .btn.primary {
@@ -583,6 +833,26 @@ body {
 
 .btn.primary:hover {
   background: var(--accent-hover);
+}
+
+.btn.danger {
+  background: var(--danger-soft);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: var(--danger);
+}
+
+.btn.danger:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.btn.success {
+  background: var(--success-soft);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: var(--success);
+}
+
+.btn.success:hover {
+  background: rgba(52, 211, 153, 0.2);
 }
 
 .implementing {
@@ -708,6 +978,7 @@ body {
   font-weight: 700;
 }
 
+/* ---------- Animations ---------- */
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -722,5 +993,14 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
   }
 }
