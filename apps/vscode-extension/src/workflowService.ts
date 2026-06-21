@@ -387,11 +387,19 @@ export class WorkflowService {
         await this.executeNextTask();
         return;
       }
-      // All children done — mark parent complete
-      await this.commit(engine.completeTask(this.session, taskId));
+      // All children done — determine parent status based on children's statuses
+      const allChildren = engine.flattenTasks(task.children);
+      const hasFailedChild = allChildren.some((c) => c.status === "failed");
+      
+      if (hasFailedChild) {
+        await this.commit(engine.failTask(this.session, taskId, "One or more sub-tasks failed"));
+      } else {
+        await this.commit(engine.completeTask(this.session, taskId));
+      }
+
       if (engine.allTasksDone(this.session.tasks)) {
         await this.completeWorkflow();
-      } else {
+      } else if (this.session.executionControl === "running") {
         await this.executeNextTask();
       }
       return;
@@ -460,8 +468,6 @@ export class WorkflowService {
       await this.commit(engine.failTask(this.session, taskId, msg));
       if (engine.allTasksDone(this.session.tasks)) {
         await this.completeWorkflow();
-      } else {
-        await this.executeNextTask();
       }
     }
   }
@@ -484,8 +490,6 @@ export class WorkflowService {
         );
         if (engine.allTasksDone(this.session.tasks)) {
           await this.completeWorkflow();
-        } else {
-          await this.executeNextTask();
         }
         return;
       }
@@ -515,8 +519,6 @@ export class WorkflowService {
     );
     if (engine.allTasksDone(this.session.tasks)) {
       await this.completeWorkflow();
-    } else {
-      await this.executeNextTask();
     }
   }
 

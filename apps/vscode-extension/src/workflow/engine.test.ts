@@ -262,7 +262,7 @@ describe("Phase 4: Execution", () => {
     expect(task?.status).toBe("completed");
   });
 
-  it("failTask marks task as failed with error", () => {
+  it("failTask marks task as failed with error and pauses execution", () => {
     const s = sessionInExecution();
     const taskId = s.tasks[0].children[0].id;
     const failed = engine.failTask(s, taskId, "Network error");
@@ -270,6 +270,8 @@ describe("Phase 4: Execution", () => {
     const task = flat.find((t) => t.id === taskId);
     expect(task?.status).toBe("failed");
     expect(task?.error).toBe("Network error");
+    expect(failed.executionControl).toBe("paused");
+    expect(failed.state).toBe("paused");
   });
 
   it("skipTask marks task as skipped", () => {

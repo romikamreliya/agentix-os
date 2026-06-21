@@ -408,11 +408,14 @@ export function failTask(
 ): WorkflowSession {
   const tasks = setTaskStatus(session.tasks, taskId, "failed", error);
   const next = findNextPendingTask(tasks);
+  const done = allTasksDone(tasks);
   return {
     ...session,
     tasks,
     currentTaskId: next?.id,
-    pendingChanges: []
+    pendingChanges: [],
+    executionControl: done ? "stopped" : "paused",
+    state: done ? session.state : "paused"
   };
 }
 
