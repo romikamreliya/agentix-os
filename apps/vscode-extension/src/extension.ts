@@ -5,6 +5,7 @@ import { ProviderManager } from "./providerManager";
 import { SettingsService } from "./settings";
 import { openSettings } from "./settingsView";
 import { PROVIDERS } from "./providers/registry";
+import { WorkflowService } from "./workflowService";
 import {
   buildCsp,
   confirmRemoveKey,
@@ -12,22 +13,31 @@ import {
   promptAndSaveKey
 } from "./webviewUtils";
 import type { ProviderId } from "./providers/types";
+import type { Plan, Understanding } from "./workflow/types";
 
 const VIEW_ID = "agentix.home";
 const PANEL_VIEW_ID = "agentix.panelHome";
 
+type UnderstandingEdit = Pick<Understanding, "summary" | "goals">;
+
 /** Messages sent from the webview to the extension host. */
 type InboundMessage =
   | { type: "ready" }
-  | { type: "submit"; prompt: string }
-  | { type: "approve" }
   | { type: "newChat" }
   | { type: "action"; action: "attach" | "code" | "image" }
   | { type: "getProviders" }
   | { type: "setActiveProvider"; id: ProviderId }
   | { type: "addProviderKey"; id: ProviderId }
   | { type: "removeProviderKey"; id: ProviderId }
-  | { type: "revalidateProvider"; id: ProviderId };
+  | { type: "revalidateProvider"; id: ProviderId }
+  // Workflow
+  | { type: "start"; prompt: string }
+  | { type: "answerUnderstanding"; answers: Record<string, string> }
+  | { type: "changeUnderstanding"; understanding: UnderstandingEdit }
+  | { type: "approveUnderstanding"; understanding: UnderstandingEdit }
+  | { type: "answerPlan"; answers: Record<string, string> }
+  | { type: "changePlan"; plan: Plan }
+  | { type: "approvePlan"; plan: Plan };
 
 /**
  * Drives a single Agentix OS webview (the hero prompt home screen).
@@ -38,38 +48,38 @@ type InboundMessage =
 class AgentixController {
   private readonly unsubscribe: () => void;
 
+  private readonly unsubscribeWorkflow: () => void;
+
   constructor(
     private readonly webview: vscode.Webview,
     private readonly providers: ProviderManager,
-    private readonly settings: SettingsService
+    private readonly workflow: WorkflowService
   ) {
     webview.onDidReceiveMessage((message: InboundMessage) => this.handleMessage(message));
-    // Re-render provider state in this webview whenever it changes anywhere.
+    // Re-render provider + workflow state in this webview whenever it changes.
     this.unsubscribe = providers.onDidChange(() => void this.postProviders());
+    this.unsubscribeWorkflow = workflow.onDidChange(() => this.postWorkflow());
   }
 
   dispose(): void {
     this.unsubscribe();
+    this.unsubscribeWorkflow();
   }
 
-  /** Resets the view back to the empty hero state. */
+  /** Clears the workflow and returns to the empty hero state. */
   newChat(): void {
-    void this.webview.postMessage({ type: "reset" });
+    void this.workflow.clear();
   }
 
   private async handleMessage(message: InboundMessage): Promise<void> {
     switch (message.type) {
       case "ready":
+        await this.postProviders();
+        this.postWorkflow();
+        return;
+
       case "getProviders":
         await this.postProviders();
-        return;
-
-      case "submit":
-        await this.runPlanningFlow(message.prompt);
-        return;
-
-      case "approve":
-        this.post({ type: "status", phase: "implement" });
         return;
 
       case "newChat":
@@ -78,6 +88,41 @@ class AgentixController {
 
       case "action":
         await this.handleAction(message.action);
+        return;
+
+      // ---------- Workflow ----------
+      case "start": {
+        const active = await this.providers.getActiveConfigured();
+        if (!active) {
+          this.post({ type: "needsProvider" });
+          return;
+        }
+        await this.workflow.start(message.prompt);
+        return;
+      }
+
+      case "answerUnderstanding":
+        await this.workflow.answerUnderstanding(message.answers);
+        return;
+
+      case "changeUnderstanding":
+        await this.workflow.changeUnderstanding(message.understanding);
+        return;
+
+      case "approveUnderstanding":
+        await this.workflow.approveUnderstanding(message.understanding);
+        return;
+
+      case "answerPlan":
+        await this.workflow.answerPlan(message.answers);
+        return;
+
+      case "changePlan":
+        await this.workflow.changePlan(message.plan);
+        return;
+
+      case "approvePlan":
+        await this.workflow.approvePlan(message.plan);
         return;
 
       case "setActiveProvider": {
@@ -146,33 +191,8 @@ class AgentixController {
     }
   }
 
-  /**
-   * Simulated request → plan flow described in the README user flow.
-   * Replace each phase with real agent calls as the runtime lands; the active
-   * provider's API key is already configured and validated by this point.
-   */
-  private async runPlanningFlow(prompt: string): Promise<void> {
-    const active = await this.providers.getActiveConfigured();
-    if (!active) {
-      this.post({ type: "needsProvider" });
-      return;
-    }
-
-    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    const autoApprove = !this.settings.get().confirmPlan;
-
-    this.post({ type: "status", phase: "analyze" });
-    await wait(900);
-
-    this.post({ type: "status", phase: "plan" });
-    await wait(1100);
-
-    this.post({ type: "plan", model: active.label, steps: buildPlan(prompt), autoApprove });
-
-    if (autoApprove) {
-      await wait(700);
-      this.post({ type: "status", phase: "implement" });
-    }
+  private postWorkflow(): void {
+    this.post({ type: "workflow", session: this.workflow.getSession() });
   }
 
   private async postProviders(): Promise<void> {
@@ -191,14 +211,14 @@ class AgentixHomeProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly providers: ProviderManager,
-    private readonly settings: SettingsService
+    private readonly workflow: WorkflowService
   ) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     webviewView.webview.options = webviewOptions(this.extensionUri);
     webviewView.webview.html = getHtml(webviewView.webview, this.extensionUri);
     this.controller?.dispose();
-    this.controller = new AgentixController(webviewView.webview, this.providers, this.settings);
+    this.controller = new AgentixController(webviewView.webview, this.providers, this.workflow);
     webviewView.onDidDispose(() => this.controller?.dispose());
   }
 
@@ -215,7 +235,7 @@ let sidePanelController: AgentixController | undefined;
 function openSidePanel(
   extensionUri: vscode.Uri,
   providers: ProviderManager,
-  settings: SettingsService
+  workflow: WorkflowService
 ): void {
   if (sidePanel) {
     sidePanel.reveal(vscode.ViewColumn.Beside);
@@ -230,7 +250,7 @@ function openSidePanel(
   );
   sidePanel.iconPath = vscode.Uri.joinPath(extensionUri, "resources", "icon.svg");
   sidePanel.webview.html = getHtml(sidePanel.webview, extensionUri);
-  sidePanelController = new AgentixController(sidePanel.webview, providers, settings);
+  sidePanelController = new AgentixController(sidePanel.webview, providers, workflow);
 
   sidePanel.onDidDispose(() => {
     sidePanelController?.dispose();
@@ -327,23 +347,6 @@ function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 </html>`;
 }
 
-/** Builds a lightweight placeholder plan from the user prompt. */
-function buildPlan(prompt: string): string[] {
-  const trimmed = prompt.trim();
-  return [
-    `Understand the request: "${truncate(trimmed, 80)}"`,
-    "Define scope, modules, and data model",
-    "Scaffold project structure and dependencies",
-    "Implement core features incrementally",
-    "Add tests and verify each milestone",
-    "Review, refine, and prepare to ship"
-  ];
-}
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-
 export function activate(context: vscode.ExtensionContext): void {
   // Non-secret data lives in a local JSON file; API keys stay in SecretStorage.
   const storeUri = vscode.Uri.joinPath(context.globalStorageUri, "agentix-data.json");
@@ -352,9 +355,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const keyStore = new KeyStore(context.secrets);
   const providers = new ProviderManager(keyStore, localStore, PROVIDERS);
+  const workflow = new WorkflowService(localStore, settings);
 
-  const sidebarProvider = new AgentixHomeProvider(context.extensionUri, providers, settings);
-  const panelProvider = new AgentixHomeProvider(context.extensionUri, providers, settings);
+  const sidebarProvider = new AgentixHomeProvider(context.extensionUri, providers, workflow);
+  const panelProvider = new AgentixHomeProvider(context.extensionUri, providers, workflow);
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(VIEW_ID, sidebarProvider, {
@@ -367,15 +371,13 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand(`${VIEW_ID}.focus`);
     }),
     vscode.commands.registerCommand("agentix.openPanel", () =>
-      openSidePanel(context.extensionUri, providers, settings)
+      openSidePanel(context.extensionUri, providers, workflow)
     ),
     vscode.commands.registerCommand("agentix.openSettings", () =>
       openSettings(context.extensionUri, providers, settings, localStore.location)
     ),
     vscode.commands.registerCommand("agentix.newChat", () => {
-      sidebarProvider.newChat();
-      panelProvider.newChat();
-      sidePanelController?.newChat();
+      void workflow.clear();
     }),
     vscode.commands.registerCommand("agentix.revealRightSection", revealRightSection)
   );
@@ -384,7 +386,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Auto-open the home as a panel beside the editor on startup (if enabled).
   if (prefs.autoOpenPanel) {
-    openSidePanel(context.extensionUri, providers, settings);
+    openSidePanel(context.extensionUri, providers, workflow);
   }
 
   // Reveal the Secondary Side Bar (the "right section") so it's ready to dock into.

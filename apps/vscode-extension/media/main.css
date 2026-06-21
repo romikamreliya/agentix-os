@@ -402,6 +402,169 @@ body {
   font-style: italic;
 }
 
+/* ---------- Workflow cards ---------- */
+.wf-card {
+  width: 100%;
+}
+
+.wf-card.approved {
+  opacity: 0.85;
+}
+
+.wf-summary {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.wf-summary.muted {
+  color: var(--text-muted);
+}
+
+.wf-list {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+
+.wf-list li {
+  margin: 2px 0;
+}
+
+.wf-list.muted li {
+  color: var(--text-muted);
+}
+
+.wf-sub {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.wf-field {
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wf-field label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.wf-field input[type="text"],
+.wf-field textarea {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 9px;
+  resize: vertical;
+}
+
+.wf-field input[type="text"]:focus,
+.wf-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Questions */
+.wf-q {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+
+.wf-q legend {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.wf-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wf-opt input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+.wf-other {
+  gap: 8px;
+}
+
+.wf-other-input {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 9px;
+}
+
+.wf-other-input:disabled {
+  opacity: 0.5;
+}
+
+/* Plan steps */
+.wf-step {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.wf-step:first-of-type {
+  border-top: none;
+  margin-top: 0;
+}
+
+.wf-step-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Task tree */
+.task-tree {
+  list-style: none;
+  margin: 4px 0 0;
+  padding-left: 0;
+}
+
+.task-tree .task-tree {
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+  margin-left: 6px;
+}
+
+.task-node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 0;
+}
+
+.task-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.task-req {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .btn {
   border-radius: 10px;
   padding: 7px 14px;
