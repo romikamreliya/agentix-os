@@ -395,6 +395,13 @@ body {
   margin-top: 14px;
 }
 
+.plan-note {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .btn {
   border-radius: 10px;
   padding: 7px 14px;

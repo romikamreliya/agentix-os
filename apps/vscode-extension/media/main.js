@@ -197,7 +197,7 @@
     scrollToBottom();
   }
 
-  function renderPlan(steps, model) {
+  function renderPlan(steps, model, autoApprove) {
     if (statusBubble) statusBubble.remove();
     statusBubble = null;
 
@@ -205,6 +205,13 @@
     el.className = "bubble ai";
 
     const items = steps.map((s) => "<li>" + escapeHtml(s) + "</li>").join("");
+    const actions = autoApprove
+      ? '<div class="plan-note">Auto-approved (plan confirmation is off in Settings).</div>'
+      : '<div class="plan-actions">' +
+        '<button class="btn primary" id="approve">Approve plan</button>' +
+        '<button class="btn" id="refine">Refine</button>' +
+        "</div>";
+
     el.innerHTML =
       '<div class="label">📋 Proposed Plan' +
       (model ? ' <span class="by">via ' + escapeHtml(model) + "</span>" : "") +
@@ -212,10 +219,7 @@
       '<ol class="plan-steps">' +
       items +
       "</ol>" +
-      '<div class="plan-actions">' +
-      '<button class="btn primary" id="approve">Approve plan</button>' +
-      '<button class="btn" id="refine">Refine</button>' +
-      "</div>";
+      actions;
 
     thread.appendChild(el);
     busy = false;
@@ -283,7 +287,7 @@
         setStatus(msg.phase);
         break;
       case "plan":
-        renderPlan(msg.steps, msg.model);
+        renderPlan(msg.steps, msg.model, msg.autoApprove);
         break;
       case "attachments":
         attachments = attachments.concat(msg.files);

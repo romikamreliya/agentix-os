@@ -68,6 +68,12 @@
         "title": "Agentix: Reveal Right Section (Secondary Side Bar)",
         "icon": "$(layout-sidebar-right)",
         "category": "Agentix"
+      },
+      {
+        "command": "agentix.openSettings",
+        "title": "Agentix: Open Settings",
+        "icon": "$(gear)",
+        "category": "Agentix"
       }
     ],
     "menus": {
@@ -88,6 +94,11 @@
           "group": "navigation@3"
         },
         {
+          "command": "agentix.openSettings",
+          "when": "view == agentix.home",
+          "group": "navigation@4"
+        },
+        {
           "command": "agentix.openPanel",
           "when": "view == agentix.panelHome",
           "group": "navigation@1"
@@ -101,6 +112,11 @@
           "command": "agentix.revealRightSection",
           "when": "view == agentix.panelHome",
           "group": "navigation@3"
+        },
+        {
+          "command": "agentix.openSettings",
+          "when": "view == agentix.panelHome",
+          "group": "navigation@4"
         }
       ]
     }

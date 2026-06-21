@@ -1,7 +1,16 @@
 import * as vscode from "vscode";
 import { KeyStore } from "./config/keyStore";
+import { LocalStore } from "./config/localStore";
 import { ProviderManager } from "./providerManager";
+import { SettingsService } from "./settings";
+import { openSettings } from "./settingsView";
 import { PROVIDERS } from "./providers/registry";
+import {
+  buildCsp,
+  confirmRemoveKey,
+  getNonce,
+  promptAndSaveKey
+} from "./webviewUtils";
 import type { ProviderId } from "./providers/types";
 
 const VIEW_ID = "agentix.home";
@@ -31,7 +40,8 @@ class AgentixController {
 
   constructor(
     private readonly webview: vscode.Webview,
-    private readonly providers: ProviderManager
+    private readonly providers: ProviderManager,
+    private readonly settings: SettingsService
   ) {
     webview.onDidReceiveMessage((message: InboundMessage) => this.handleMessage(message));
     // Re-render provider state in this webview whenever it changes anywhere.
@@ -79,11 +89,11 @@ class AgentixController {
       }
 
       case "addProviderKey":
-        await this.handleAddKey(message.id);
+        await promptAndSaveKey(this.providers, message.id);
         return;
 
       case "removeProviderKey":
-        await this.handleRemoveKey(message.id);
+        await confirmRemoveKey(this.providers, message.id);
         return;
 
       case "revalidateProvider": {
@@ -93,44 +103,6 @@ class AgentixController {
           : vscode.window.showWarningMessage(result.error ?? "Validation failed."));
         return;
       }
-    }
-  }
-
-  private async handleAddKey(id: ProviderId): Promise<void> {
-    const provider = PROVIDERS.find((p) => p.id === id);
-    if (!provider) {
-      return;
-    }
-    const key = await vscode.window.showInputBox({
-      title: `${provider.label} API key`,
-      prompt: `Enter your ${provider.vendor} API key (${provider.keyHint}).`,
-      password: true,
-      ignoreFocusOut: true,
-      placeHolder: provider.keyHint
-    });
-    if (key === undefined) {
-      return; // cancelled
-    }
-
-    const result = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `Validating ${provider.label} key…` },
-      () => this.providers.saveKey(id, key)
-    );
-
-    void (result.ok
-      ? vscode.window.showInformationMessage(`${provider.label} connected.`)
-      : vscode.window.showErrorMessage(result.error ?? "Could not add the API key."));
-  }
-
-  private async handleRemoveKey(id: ProviderId): Promise<void> {
-    const provider = PROVIDERS.find((p) => p.id === id);
-    const choice = await vscode.window.showWarningMessage(
-      `Remove the ${provider?.label ?? "provider"} API key?`,
-      { modal: true },
-      "Remove"
-    );
-    if (choice === "Remove") {
-      await this.providers.removeKey(id);
     }
   }
 
@@ -187,6 +159,7 @@ class AgentixController {
     }
 
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const autoApprove = !this.settings.get().confirmPlan;
 
     this.post({ type: "status", phase: "analyze" });
     await wait(900);
@@ -194,7 +167,12 @@ class AgentixController {
     this.post({ type: "status", phase: "plan" });
     await wait(1100);
 
-    this.post({ type: "plan", model: active.label, steps: buildPlan(prompt) });
+    this.post({ type: "plan", model: active.label, steps: buildPlan(prompt), autoApprove });
+
+    if (autoApprove) {
+      await wait(700);
+      this.post({ type: "status", phase: "implement" });
+    }
   }
 
   private async postProviders(): Promise<void> {
@@ -212,14 +190,15 @@ class AgentixHomeProvider implements vscode.WebviewViewProvider {
 
   constructor(
     private readonly extensionUri: vscode.Uri,
-    private readonly providers: ProviderManager
+    private readonly providers: ProviderManager,
+    private readonly settings: SettingsService
   ) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     webviewView.webview.options = webviewOptions(this.extensionUri);
     webviewView.webview.html = getHtml(webviewView.webview, this.extensionUri);
     this.controller?.dispose();
-    this.controller = new AgentixController(webviewView.webview, this.providers);
+    this.controller = new AgentixController(webviewView.webview, this.providers, this.settings);
     webviewView.onDidDispose(() => this.controller?.dispose());
   }
 
@@ -233,7 +212,11 @@ let sidePanel: vscode.WebviewPanel | undefined;
 let sidePanelController: AgentixController | undefined;
 
 /** Opens (or reveals) the Agentix OS home as a panel beside the editor. */
-function openSidePanel(extensionUri: vscode.Uri, providers: ProviderManager): void {
+function openSidePanel(
+  extensionUri: vscode.Uri,
+  providers: ProviderManager,
+  settings: SettingsService
+): void {
   if (sidePanel) {
     sidePanel.reveal(vscode.ViewColumn.Beside);
     return;
@@ -247,7 +230,7 @@ function openSidePanel(extensionUri: vscode.Uri, providers: ProviderManager): vo
   );
   sidePanel.iconPath = vscode.Uri.joinPath(extensionUri, "resources", "icon.svg");
   sidePanel.webview.html = getHtml(sidePanel.webview, extensionUri);
-  sidePanelController = new AgentixController(sidePanel.webview, providers);
+  sidePanelController = new AgentixController(sidePanel.webview, providers, settings);
 
   sidePanel.onDidDispose(() => {
     sidePanelController?.dispose();
@@ -271,19 +254,12 @@ function getHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, "media", "main.js")
   );
-  const csp = [
-    `default-src 'none'`,
-    `style-src ${webview.cspSource} 'unsafe-inline'`,
-    `script-src 'nonce-${nonce}'`,
-    `font-src ${webview.cspSource}`,
-    `img-src ${webview.cspSource} data:`
-  ].join("; ");
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="${csp}" />
+  <meta http-equiv="Content-Security-Policy" content="${buildCsp(webview, nonce)}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="${styleUri}" rel="stylesheet" />
   <title>Agentix OS</title>
@@ -368,21 +344,17 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function getNonce(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let text = "";
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return text;
-}
-
 export function activate(context: vscode.ExtensionContext): void {
-  const keyStore = new KeyStore(context.secrets);
-  const providers = new ProviderManager(keyStore, context.globalState, PROVIDERS);
+  // Non-secret data lives in a local JSON file; API keys stay in SecretStorage.
+  const storeUri = vscode.Uri.joinPath(context.globalStorageUri, "agentix-data.json");
+  const localStore = new LocalStore(storeUri.fsPath);
+  const settings = new SettingsService(localStore);
 
-  const sidebarProvider = new AgentixHomeProvider(context.extensionUri, providers);
-  const panelProvider = new AgentixHomeProvider(context.extensionUri, providers);
+  const keyStore = new KeyStore(context.secrets);
+  const providers = new ProviderManager(keyStore, localStore, PROVIDERS);
+
+  const sidebarProvider = new AgentixHomeProvider(context.extensionUri, providers, settings);
+  const panelProvider = new AgentixHomeProvider(context.extensionUri, providers, settings);
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(VIEW_ID, sidebarProvider, {
@@ -395,7 +367,10 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand(`${VIEW_ID}.focus`);
     }),
     vscode.commands.registerCommand("agentix.openPanel", () =>
-      openSidePanel(context.extensionUri, providers)
+      openSidePanel(context.extensionUri, providers, settings)
+    ),
+    vscode.commands.registerCommand("agentix.openSettings", () =>
+      openSettings(context.extensionUri, providers, settings, localStore.location)
     ),
     vscode.commands.registerCommand("agentix.newChat", () => {
       sidebarProvider.newChat();
@@ -405,11 +380,17 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agentix.revealRightSection", revealRightSection)
   );
 
-  // Auto-open the home as a panel beside the editor on startup.
-  openSidePanel(context.extensionUri, providers);
+  const prefs = settings.get();
+
+  // Auto-open the home as a panel beside the editor on startup (if enabled).
+  if (prefs.autoOpenPanel) {
+    openSidePanel(context.extensionUri, providers, settings);
+  }
 
   // Reveal the Secondary Side Bar (the "right section") so it's ready to dock into.
-  void revealRightSection();
+  if (prefs.revealRightSection) {
+    void revealRightSection();
+  }
 }
 
 /** Opens VS Code's Secondary Side Bar (the right section). */

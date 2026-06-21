@@ -1,0 +1,153 @@
+.settings {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+
+.settings-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.settings-header .subtitle {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+}
+
+.settings-section {
+  margin-top: 32px;
+}
+
+.settings-section h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+
+.section-desc {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Provider rows reuse the badge/link styles from main.css */
+.settings-providers {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-soft);
+}
+
+.settings-providers .provider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-providers .provider-row:last-child {
+  border-bottom: none;
+}
+
+.settings-providers .provider-row.active {
+  background: var(--accent-soft);
+}
+
+.key-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.provider-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Preferences */
+.preferences {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-soft);
+}
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.pref-row:last-child {
+  border-bottom: none;
+}
+
+.pref-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pref-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pref-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.switch {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch.on .knob {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+.store-path {
+  display: block;
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  word-break: break-all;
+}
