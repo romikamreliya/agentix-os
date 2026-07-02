@@ -1,6 +1,6 @@
 ---
 name: react-motion-animations
-version: 1.0.0
+version: 1.1.0
 description: >-
   Add modern, performant CSS/motion animations to React apps using the Motion
   library (motion/react, formerly Framer Motion) to improve UX and interface
@@ -28,6 +28,10 @@ trivial hover.
 - `references/patterns.md` — copy-paste recipes for the common asks (fade-in,
   staggered list, hover/tap button, scroll reveal, modal/dialog, page/route
   transition, layout & shared-element, drag).
+- `references/use-cases.md` — **when and where** to use motion and each pattern:
+  a pattern → use case → applicable UI components table, trigger-based lookup,
+  and how intensity should vary by surface (marketing vs. app vs. data). Read
+  this to decide *whether* and *which* to animate before picking a mechanism.
 - `references/performance-and-a11y.md` — animate only cheap properties, reduce
   bundle size, and respect `prefers-reduced-motion`. **Always apply this.**
 
@@ -48,12 +52,18 @@ of the file.
 
 ## Workflow
 
-1. **Clarify the goal.** Identify what should animate, the trigger (mount, hover/
-   tap, scroll into view, state change, route change, drag), and the desired feel
-   (subtle micro-interaction vs. expressive). Ask only if it's genuinely unclear.
+1. **Clarify the goal & confirm motion fits.** Identify what should animate, the
+   trigger (mount, hover/tap, scroll into view, state change, route change, drag),
+   and the desired feel (subtle micro-interaction vs. expressive). Use
+   `references/use-cases.md` to confirm motion actually helps here (feedback,
+   continuity, attention) and to match the surface's appropriate intensity
+   (marketing vs. app vs. data/admin) — skip or minimize motion where it would
+   slow a dense, productivity-critical UI. Ask only if it's genuinely unclear.
 2. **Confirm setup.** Check whether `motion` is installed and whether the file is
    a client component (Next.js). Add the import (and `"use client"`) as needed.
-3. **Pick the mechanism** using `references/api-cheatsheet.md`:
+3. **Pick the pattern, then the mechanism.** Use `references/use-cases.md` to map
+   the trigger and UI component to the right pattern (its table and trigger
+   lookup), then get the API right with `references/api-cheatsheet.md`:
    - Mount/state change → `initial` + `animate` (+ `exit` inside `AnimatePresence`).
    - Interaction → `whileHover` / `whileTap` / `whileFocus` / `whileDrag`.
    - Scroll → `whileInView` (triggered) or `useScroll` + `useTransform` (linked).
