@@ -47,8 +47,10 @@ Import the ESM build straight from a CDN inside a module script:
   </body>
 </html>
 ```
-(unpkg works too: `https://unpkg.com/motion@latest/+esm`. Pin a version like
-`motion@11` for production instead of `@latest`.)
+(unpkg works too: `https://unpkg.com/motion@latest/+esm`. Pin a major version
+like `motion@12` for production instead of `@latest`. **Use `motion@12` or
+newer** — the `hover()` and `press()` gesture functions were added in v12, so
+`motion@11` will throw `does not provide an export named 'hover'`.)
 
 ## The core JS API
 
