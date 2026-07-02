@@ -17,15 +17,6 @@ description: >-
 
 <One sentence: what this skill does.>
 
-## When & why to use
-- **Where to use:** <surfaces / contexts / project types / files>.
-- **Why to use:** <the problem it solves; value over doing it manually>.
-- **Recommended use cases:** <concrete situations where it's the right tool>.
-- **Examples:** <short realistic invocation or before/after>.
-- **Benefits:** <speed / consistency / correctness / quality gained>.
-- **Limitations:** <where it falls short; what it does NOT do>.
-- **Applicable scenarios:** <trigger signals; when to prefer another skill>.
-
 ## Reference files
 - `references/<file>.md` — <what's in it>.
 
@@ -37,9 +28,6 @@ description: >-
 ## Notes
 - <Conventions, constraints, gotchas.>
 ```
-
-> The **When & why to use** section is required — see `skill-authoring.md`. If it
-> grows long, extract it to `references/use-cases.md` and link it here.
 
 ## CHANGELOG.md skeleton (initial)
 

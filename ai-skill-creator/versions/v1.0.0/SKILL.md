@@ -1,6 +1,6 @@
 ---
 name: ai-skill-creator
-version: 1.1.0
+version: 1.0.0
 description: >-
   Create a new Claude Agent Skill from provided material — raw text, website
   URLs, PDFs, DOCX/documents — or update and version an existing generated
@@ -32,9 +32,7 @@ skills/<name>/
 ## Reference files (read on demand)
 
 - `references/skill-authoring.md` — how to write frontmatter, descriptions, and
-  body; progressive-disclosure rules; the **required usage-documentation** section
-  (where/why/use cases/examples/benefits/limitations/scenarios); the pre-ship
-  validation checklist.
+  body; progressive-disclosure rules; the pre-ship validation checklist.
 - `references/ingestion.md` — routing table mapping each input type to the tool
   or skill that reads it (firecrawl-scrape / firecrawl-search / firecrawl-parse /
   Read / WebFetch).
@@ -75,19 +73,10 @@ Following `references/skill-authoring.md`:
 - Write a trigger-rich third-person `description` (what + when + trigger words).
 - Decide the body-vs-`references/` split via progressive disclosure — keep
   SKILL.md scannable; push long detail or large content into `references/`.
-- Plan the **required usage documentation** (see `references/skill-authoring.md`):
-  every generated skill must explain **where** it should be used, **why** to use
-  it, **recommended use cases**, **practical examples**, **benefits**,
-  **limitations**, and **applicable scenarios**. This is mandatory — a skill that
-  doesn't say when and where to use it is much less useful and rarely gets
-  adopted. Put a concise "When & why to use" section in the SKILL.md body; if it
-  grows long, extract a `references/use-cases.md`.
 
 ### 5. Generate
 Create the files (use `references/templates.md` as the starting point):
-- `skills/<name>/SKILL.md` with `version: 1.0.0` in frontmatter, including the
-  required "When & why to use" section (where/why/use cases/examples/benefits/
-  limitations/scenarios).
+- `skills/<name>/SKILL.md` with `version: 1.0.0` in frontmatter.
 - Any `references/*.md` the design calls for.
 - `CHANGELOG.md` with an initial `1.0.0` entry dated today (`YYYY-MM-DD`).
 - Snapshot the new `SKILL.md` + `references/` into `versions/v1.0.0/`
@@ -96,9 +85,8 @@ Create the files (use `references/templates.md` as the starting point):
 ### 6. Validate
 Run the pre-ship checklist in `references/skill-authoring.md`: frontmatter
 parses, `name` equals the directory name, description states what + when +
-triggers, the **usage documentation is present** (where/why/use cases/examples/
-benefits/limitations/scenarios), and the `versions/v1.0.0/` snapshot matches the
-live files. Report the result and the path to the generated skill.
+triggers, and the `versions/v1.0.0/` snapshot matches the live files. Report the
+result and the path to the generated skill.
 
 ---
 
@@ -124,10 +112,6 @@ into itself. Leave existing snapshots untouched.
 
 ### 5. Apply, bump, log
 - Edit the live `SKILL.md` (and references) with the improvements.
-- Ensure the skill has the **required usage documentation** (where/why/use cases/
-  examples/benefits/limitations/scenarios). If an older skill lacks it, add the
-  "When & why to use" section as part of this update (counts as at least a minor
-  bump).
 - Bump the `version` field in frontmatter to the new number.
 - Prepend a `CHANGELOG.md` entry: new version, today's date (`YYYY-MM-DD`), bump
   type, and a summary of what changed and which source input drove it.

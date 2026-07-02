@@ -57,28 +57,6 @@ The body is loaded when the skill is invoked. Keep it **scannable**:
 - Link to `references/*.md` for anything long — don't inline large tables,
   exhaustive rules, or big examples.
 
-## Usage documentation (required in every skill)
-
-A skill that doesn't say **when and where to use it** is far less useful and
-rarely gets adopted — people forget it exists or misapply it. So every generated
-skill **must** document its own usage. Include a **"When & why to use"** section
-in the SKILL.md body (extract to `references/use-cases.md` if it gets long),
-covering:
-
-- **Where to use it** — the surfaces, contexts, project types, or files where it
-  applies.
-- **Why to use it** — the problem it solves and the value over doing it manually.
-- **Recommended use cases** — concrete situations where it's the right tool.
-- **Practical examples** — short, realistic invocations or before/after snippets.
-- **Benefits** — what the user gains (speed, consistency, correctness, quality).
-- **Limitations** — where it falls short, and what it deliberately does *not* do.
-- **Applicable scenarios** — trigger conditions / signals that this skill fits;
-  and, where useful, when to prefer a different skill instead.
-
-This is distinct from the `description` frontmatter: the description is the
-trigger text (short, third person); this section is the fuller adoption guide the
-reader sees once the skill is opened. Keep it concrete — avoid generic filler.
-
 ## Progressive disclosure (the core principle)
 
 Context is loaded in three tiers — put each piece of information at the tier
@@ -106,9 +84,6 @@ Before declaring a generated skill done, confirm:
 - [ ] `SKILL.md` frontmatter is valid YAML and parses.
 - [ ] `name` is kebab-case **and** equals the directory name.
 - [ ] `description` states what + when + trigger words, third person, < ~1024 chars.
-- [ ] Usage documentation is present — a "When & why to use" section covering
-      where, why, recommended use cases, practical examples, benefits,
-      limitations, and applicable scenarios (in body or `references/use-cases.md`).
 - [ ] `version` is present and is a valid `X.Y.Z`.
 - [ ] Body is scannable, with clear numbered steps.
 - [ ] Long/large content lives in `references/`, not the body.
